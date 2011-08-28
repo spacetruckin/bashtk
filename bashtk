@@ -612,6 +612,46 @@ strTok()
     done
 }
 
+## strRep: Repeat a string.
+#  Usage: strRep STR NREP [MAXLEN]
+#  Repeats the string STR NREP times. If MAXLEN is specified truncates
+#  the output at a maximum length.
+strRep()
+{
+    local s="$1"
+    local n="${2:-0}"
+    local maxlen="$3"
+    local x=''
+    for i in $(seq 1 $n); do
+	x="${x}$s"
+    done
+    if [[ -z $maxlen ]]; then
+	echo "$x"
+    else
+	maxlen=$(min ${#x} $maxlen)
+	echo "${x:0:$maxlen}"
+    fi
+}
+
+## colorize: Highlight search terms.
+#  Usage: PIPE | colorize TERM1 ...
+#  Highlights each term in the input data.
+colorize()
+{
+    local terms=( "$@" )
+    local col='\033[1;31m'
+    local reset='\033[0m'
+    if isPipeIn; then
+	while read l; do
+	    for t in "${terms[@]}";
+	    do
+		l=`echo -e "${l//$t/${col}$t${reset}}"`
+	    done
+	    echo "$l"
+	done
+    fi
+}
+
 ##################
 ### Math utilities
 ##################
@@ -632,6 +672,27 @@ setBCScale()
 getBCScale()
 {
     echo ${BTK_BCSCALE}
+}
+
+
+## rand: Generate random numbers.
+#  Usage: rand [N]
+#  Generates one random number in the range [0,1]. Generates N value
+#  if specified.
+rand()
+{
+   local n=${1:-1}
+   if require awk; then
+       local x=(`awk -v N=$n 'BEGIN{srand(); for (i=0;i<N;i++){print rand();}}'`)
+   else
+       # polling /dev/urandom is inefficient, and should not be used
+       # for long sequences
+       for i in $(seq 1 $n)
+       do
+	   x[$i]=`echo "scale=$(getBCScale);"$(od -N3 -An -i /dev/urandom)'/16777216'|bc`
+       done
+   fi
+   echo "${x[@]}"
 }
 
 ## sum: Calculate the sum of elements in a list.
