@@ -72,18 +72,6 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
     fi
 }
 
-AWK_COLORIZE='function colorize(word, color)
-{
-c["red"] = "^[[1;31;40m"
-c["green"] = "^[[1;32;40m"
-c["yellow"] = "^[[1;33;40m"
-c["blue"] = "^[[1;34;40m"
-c["magenta"] = "^[[1;35;40m"
-if (line ~ word)
-{ split (line, a, word)
-line=a[1] c[color] (word) "^[[0;37;40m" a[2]
-}'
-
 ### IO functions
 
 ## file2array: Read a text file into an array.
