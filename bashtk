@@ -27,7 +27,7 @@ BTK_VERSION="1.0-rc1"
 BTK_PATH=$BASH_SOURCE
 
 # global variables used by various functions.
-# Note Change these directly can have unintended effects.
+# Note changing these directly can have unintended effects.
 BTK_TIC='' #timer count
 BTK_ENABLE_LOG=0 #enable logging
 BTK_LOG_FILE='' #log filename
@@ -52,17 +52,14 @@ Type \033[0;32;40mbtkhelp\033[0m for a list of available commands.
 
 btkhelp()
 {
-    if [ -z "$1" ]; then
+    if [[ -z $1 ]]; then
 	echo -e "\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
 	echo "List of available commands:"
-
 	awk '
 /^### .*/ {gsub ("^#* *",""); print "\033[4;1;36;40m""\n"$0"\033[0m";}
 /^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
-
-	
-echo
+	echo
 	echo "Type btkhelp <command> for help on a specific command."
     else
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
@@ -74,6 +71,81 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
 
 ### IO functions
 
+## input: Read input from stdin, pipes or files.
+#  Usage: [PIPE|] input [STDIN] [<FILE]
+#  Returns data from standard input, file redirection or pipe.
+#  
+#  Example:
+#  echo 1 2 3 | input
+#  input 1 2 3
+#  input < file.txt
+#  #Read into an array
+#  in=(`input "$@"`)
+input()
+{
+    local SAVEIFS=$IFS
+    IFS=$(echo -en "\n\b")
+    local x=( "$@" )
+    if [[ ${#x[@]} -eq 0 ]]; then
+	if isPipeIn || ! isStdIn; then
+	    x=(`while read l; do echo "$l"; done`)
+	fi
+    fi
+    echo "${x[@]}"
+    IFS=$SAVEIFS
+}
+
+inputType()
+{
+    local t='no input'
+    local x=( "$@" )
+    if [[ ${#x[@]} -gt 0 ]]; then
+	t='stdin'
+    elif isPipeIn; then
+	t='pipe'
+    elif ! isStdIn; then
+	t='file'
+    fi
+    echo $t
+}
+## isPipeIn: Test if script received a pipe input.
+#  Usage: isPipeIn
+#  Returns 0 if a pipe input was detected, 1 if not
+isPipeIn()
+{
+    local src=$(readlink /proc/self/fd/0)
+    if [[ $src =~ ^pipe: ]]; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+## isStdIn: Test if script received standard input.
+#  Usage: isStdIn
+#  Returns 0 if a standard input was detected, 1 if not
+isStdIn()
+{
+    local src=$(file `readlink /proc/self/fd/0`)
+    if [[ $src =~ character\ special ]]; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+## isFileIn: Test if script received a file redirection input.
+#  Usage: isFileIn
+#  Returns 0 if a file redirection input was detected, 1 if not
+isFilein()
+{
+    if ! isPipeIn && ! isStdin; then
+	return 0
+    else
+	return 1
+    fi
+}
+
 ## file2array: Read a text file into an array.
 #  Usage: file2array FILENAME
 #  Reads each line in FILENAME into an array
@@ -84,12 +156,12 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
 file2array()
 {
     local f="$1"
-    if (isFile $f); then
+    if isFile $f; then
 	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
 	for e in "${arr[@]}";
-	  do
-	  echo $e
-	  done	
+	do
+	    echo $e
+	done	
     fi
 }
 
@@ -104,7 +176,7 @@ file2array()
 file2list()
 {
     local f="$1"
-    if (isFile $f); then
+    if isFile $f; then
 	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
     fi
 }
@@ -139,7 +211,7 @@ tic ()
 toc()
 {
     local _TOC=$(date +%s)
-    if [ -n "$BTK_TIC" ]; then
+    if [[ -n $BTK_TIC ]]; then
 	local SECS_ELAPSED=$(($_TOC - $BTK_TIC))
 	echo "${SECS_ELAPSED}"
 	return 0
@@ -201,19 +273,19 @@ color()
     shift $(min 1 $#)
     local effect=(`upper "$@"`)
     local fgval=$(_getAttrValue $fgcol)
-    if [ -n "$effect" ]; then
+    if [[ -n $effect ]]; then
 	for e in "${effect[@]}"; do
 	    local effectval=$(_getAttrValue $e)
-	    if [[ -n "$effectval" ]]; then
+	    if [[ -n $effectval ]]; then
 		tput $effectval
 	    fi
 	done
     fi
 
-    if [ "$fgcol" == 'DEFAULT' -o "$fgcol" == 'RESET' ]; then
+    if [[ $fgcol == 'DEFAULT' || $fgcol == 'RESET' ]]; then
 	tput $fgval
     else
-	if [[ -n "$fgval" ]]; then 
+	if [[ -n $fgval ]]; then 
 	    tput setaf $fgval
 	fi
     fi
@@ -243,7 +315,7 @@ colorBG()
     local effect=(`upper "$@"`)
     color $fgcol "${effect[@]}"
     local bgval=$(_getAttrValue $bgcol)
-    if [[ -n "$bgval" ]]; then
+    if [[ -n $bgval ]]; then
 	tput setab $bgval
     fi
 }
@@ -274,7 +346,7 @@ msg()
 #  See also: logoff, log
 logon()
 {
-    if [ -n "$1" ]; then
+    if [[ -n $1 ]]; then
 	BTK_LOG_FILE="$1"
 	touch "$BTK_LOG_FILE"
 	BTK_ENABLE_LOG=1
@@ -308,9 +380,9 @@ logsuspend()
 #  See also: logsuspend
 logresume()
 {
-    if [ "$BTK_ENABLE_LOG" -eq 0 -a -f "$BTK_LOG_FILE" ]; then
+    if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
 	logon "$BTK_LOG_FILE"
-    elif [ ! -f "$BTK_LOG_FILE" ]; then
+    elif [[ ! -f $BTK_LOG_FILE ]]; then
 	echo 'Logfile does not exist, cannot resume.'
     fi
 }
@@ -322,10 +394,10 @@ logresume()
 #  See also: logon, logoff, msg
 log()
 {
-    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	local m="$@"
 	local ts=`date +"$BTK_LOG_DATE_FORMAT"`
-	if [ -n "$m" ]; then
+	if [[ -n $m ]]; then
 	    echo "$ts $m" >> "$BTK_LOG_FILE"
 	else
 	    echo "$ts -- Empty message --" >> "$BTK_LOG_FILE"
@@ -337,7 +409,7 @@ log()
 #  Usage: logcat
 logcat()
 {
-    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	cat "$BTK_LOG_FILE"
     else
 	echo "Logging not enabled"
@@ -352,7 +424,7 @@ logcat()
 logtail()
 {
     local n=${1:-10}
-    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
         tail -"$n" "$BTK_LOG_FILE"
     else
         echo "Logging not enabled"
@@ -377,7 +449,7 @@ loghead()
 #  Usage: logname
 logname()
 {
-    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	echo "$BTK_LOG_FILE"
     else
         echo "Logging not enabled"
@@ -388,7 +460,7 @@ logname()
 #  Usage: logreset
 logreset()
 {
-    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	rm -f "$BTK_LOG_FILE"
 	logon "$BTK_LOG_FILE"
     else
@@ -402,7 +474,7 @@ logreset()
 #  EXIT_CODE
 printHelpAndExit()
 {
-    if ( isDefined $usageHelp ); then
+    if isDefined $usageHelp; then
 	echo -e "$usageHelp"
     fi
     exit $1
@@ -442,15 +514,15 @@ printErrorAndExit()
 # if (isEmpty "foo"); then echo 'string is not empty'; fi
 isEmpty()
 {
-    [[ -z "$1" ]]
+    [[ -z $1 ]]
 }
 
 ## isDefined: Test if variable exists.
 #  Example:
 #  y='foo'
 #  unset x
-#  if (isDefined y); then echo 'y is defined'; fi
-#  if (! isDefined x); then echo 'x is no defined'; fi
+#  isDefined $y && echo 'y is defined'
+#  ! isDefined $x && echo 'x is not defined'
 isDefined()
 {
     #[[ ${!1-X} == ${!1-Y} ]]
@@ -470,10 +542,11 @@ isNumeric()
 ## isInteger: Test if a variable is an integer.
 #  Usage: isInteger VAR
 #
-#  if (isInteger -10); then echo 'is an integer'; fi 
+#  if isInteger -10; then echo 'is an integer'; fi 
 isInteger()
 {
     [ "$1" -eq "$1" 2>/dev/null ]
+    #[[ $1 -eq $1 ]] 2>/dev/null
 }
 
 ##################
@@ -483,35 +556,35 @@ isInteger()
 ## upper: Convert string to uppercase.
 upper()
 {
-    echo "$@" | tr '[:lower:]' '[:upper:]'
+    echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
 }
 
 
 ## lower: Convert string to lowercase.
 lower()
 {
-    echo "$@" | tr '[:upper:]' '[:lower:]'
+    echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
 }
 
 ## capitalize: Convert first letter of string to uppercase.
 capitalize()
 {
-    local first="$1"
-    shift $(min 1 $#)
-    local rest="$@"
-    echo `upper ${first:0:1}``lower "${first:1} $rest"`
+    local s="$(input "$@")"
+    local f=`upper "${s:0:1}"`
+    local r=`lower "${s:1}"`
+    echo "$f$r"
 }
 
 ## strDeblank: Remove trailing spaces from the end of a string.
 strDeblank()
 {
-    echo "$@" | sed 's/ *$//'
+    echo "$(input $@)" | sed 's/ *$//'
 }
 
 ## strTrim: Remove leading and trailing spaces from a string.
 strTrim()
 {
-    echo "$@" | sed 's/^ *//; s/ *$//'
+    echo "$(input $@)" | sed 's/^ *//; s/ *$//'
 }
 
 ## strTok: Split string into parts separated by a delimiter.
@@ -525,11 +598,15 @@ strTrim()
 #  echo ${x[@]}
 strTok()
 {
-    local tok="$2"
-    if (isEmpty $tok); then
-	tok=' '
-    fi
-    local arr=$(echo "$1"| tr "$tok" '\n')
+    local tok=' '
+    local s=(`input`)
+    while getopts 't:s:' opt; do
+	case "$opt" in
+	    t) tok="$OPTARG";;
+	    s) s="$OPTARG";;
+	esac
+    done
+    local arr=$(echo "$s"| tr "$tok" '\n')
     for e in ${arr[@]}; do
 	echo $e
     done
@@ -565,16 +642,16 @@ getBCScale()
 #  sum ${x[@]}
 sum()
 {
-    local x=( $@ )
-    echo ${x[@]}|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
+    local x=( `input "$@"` )
+    echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
     return 0
 }
 
 ## min: Calculate the minimum of a list of numbers.
 min()
 {
-    local x=( $@ )
-    if [ ${#x[@]} -gt 0 ]; then
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]]; then
 	echo ${x[@]}|awk '{min=$1; for(i=1;i<=NF;i++){if ($i<min) {min=$i;}}; print min}'
 	return 0
     else
@@ -585,8 +662,8 @@ min()
 ## max: Calculate the maximum of a list of numbers.
 max()
 {
-    local x=( $@ )
-    if [ ${#x[@]} -gt 0 ]; then
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]]; then
 	echo ${x[@]}|awk '{max=$1; for(i=1;i<=NF;i++){if ($i>max) {max=$i;}}; print max}'
 	return 0
     else
@@ -598,7 +675,7 @@ max()
 #  Usage: length L1 L2 L3 ...
 length()
 {
-    local x=( $@ )
+    local x=( `input "$@"` )
     echo ${#x[@]}
     return 0
 }
@@ -617,7 +694,7 @@ pi()
 #  Usage: log2 N1 N2 N3 ...
 log2()
 {
-    local x=( $@ )
+    local x=( `input "$@"` )
     for e in ${x[@]}; do
 	echo "scale=$(getBCScale); l($e)/l(2)"|bc -l
     done
@@ -628,7 +705,7 @@ log2()
 #  Calculates 2^N for a list of numbers.
 pow2()
 {
-    local x=( $@ )
+    local x=( `input "$@"` )
     for e in ${x[@]}; do
 	if (isInteger $e); then
 	    echo "scale=$(getBCScale); 2^$e"|bc
@@ -642,7 +719,7 @@ pow2()
 #  Usage: sqrt N1 [N2] ...
 sqrt()
 {
-    local x=( $@ )
+    local x=( `input "$@"` )
     for e in ${x[@]}; do
         if (float_cond "$e>=0"); then
             echo "scale=$(getBCScale); sqrt($e)"|bc
@@ -661,10 +738,16 @@ sqrt()
 #  See also: setBCScale
 mean()
 {
-    local x=( $@ )
-    echo "scale=$(getBCScale);" $(sum ${x[@]})/${#x[@]}|bc
+    local x=( `input "$@"` )
+    echo "scale=$(getBCScale);" $(sum "${x[@]}")/${#x[@]}|bc
 }
-
+test()
+{
+    local x=(`input "$@"`)
+    echo "${x[@]}"
+    sum "${x[@]}"
+    echo "${x[@]}" |sum
+}
 ## calc: Evaluate a floating point number expression.
 #  Usage: calc EXPRESSION
 #  Evaluates EXPRESSION using bc. Writes the result of EXPRESSION to
@@ -677,13 +760,14 @@ mean()
 #
 #  See also: float_cond
 
-# From: http://www.linuxjournal.com/content/floating-point-math-bash
+# Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
 function calc()
 {
     local stat=0
     local result=0.0
-    if [[ $# -gt 0 ]]; then
-        result=$(echo "scale=$(getBCScale); $*" | bc -q -l 2>/dev/null)
+    local e=(`input "$@"`)
+    if [[ "${#e[@]}" -gt 0 ]]; then
+        result=$(echo "scale=$(getBCScale); ${e[@]}" | bc -q -l 2>/dev/null)
         stat=$?
         if [[ $stat -eq 0  &&  -z "$result" ]]; then stat=1; fi
     fi
@@ -698,12 +782,13 @@ function calc()
 #  Example: if (float_cond '12.0 > 3.0'); then echo true; fi
 #  See also: float_eval
 
-# From: http://www.linuxjournal.com/content/floating-point-math-bash
+# Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
 function float_cond()
 {
     local cond=0
-    if [[ $# -gt 0 ]]; then
-        cond=$(echo "$*" | bc -q 2>/dev/null)
+    local e=(`input "$@"`)
+    if [[ ${#e[@]} -gt 0 ]]; then
+        cond=$(echo "${e[@]}" | bc -q 2>/dev/null)
         if [[ -z "$cond" ]]; then cond=0; fi
         if [[ "$cond" != 0  &&  "$cond" != 1 ]]; then cond=0; fi
     fi
@@ -713,7 +798,7 @@ function float_cond()
 
 array2arg()
 {
-    local x=( $@ )
+    local x=( `input $@` )
     if (isDefined x); then
 	echo ${x[@]}
     fi
@@ -741,8 +826,8 @@ arg2array()
 #TODO: test if numeric
 abs()
 {
-    local x=( $@ )
-    if [ ${#x[@]} -gt 0 ]; then
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]]; then
         echo ${x[@]}|awk '{for(i=1;i<=NF;i++){print ($i>=0) ? $i : -$i;}}'
         return 0
     else
@@ -756,7 +841,7 @@ abs()
 #  is equal to zero.
 sign()
 {
-    local x=( $@ )
+    local x=( `input "$@"` )
     for e in "${x[@]}"
     do
       if (isNumeric $e); then
@@ -781,7 +866,7 @@ round()
 {
     BC_ROUND="define round(x) { scale=0; if (x>0) return (x+0.5)/1
     else return (x-0.5)/1 }"
-    local x=( $@ )
+    local x=( `input "$@"` )
     for e in "${x[@]}"
     do
       if (isNumeric $e); then
@@ -800,7 +885,7 @@ round()
 ceil() { 
 # BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
-    local x=( $@ )
+    local x=( `input "$@"` )
     local BC_CEIL="define ceil(x) { auto savescale; savescale = scale;
     scale = 0; if (x>0) { if (x%1>0) result = x+(1-(x%1)) else result
     = x} else result = -1*floor(-1*x); scale = savescale; return
@@ -829,7 +914,7 @@ ceil() {
 floor() { 
 # BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
-    local x=( $@ )
+    local x=( `input "$@"` )
     local BC_CEIL="define ceil(x) { auto savescale; savescale = scale;
     scale = 0; if (x>0) { if (x%1>0) result = x+(1-(x%1)) else result
     = x} else result = -1*floor(-1*x); scale = savescale; return
@@ -865,7 +950,7 @@ floor() {
 # if ! (isDir myfolder); then echo 'folder does not exist'; fi
 isDir()
 {
-    [[ -d "$1" ]]
+    [[ -d $1 ]]
 }
 
 ## isFile: Test if file exists.
@@ -876,7 +961,7 @@ isDir()
 #  if (isFile myfile.txt); then echo 'file exists'; fi
 isFile()
 {
-    [[ -f "$1" ]]
+    [[ -f $1 ]]
 }
 
 ## require: Test if a command is available.
