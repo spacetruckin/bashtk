@@ -1,0 +1,1023 @@
+#!/bin/bash
+# BASHTK: BASH Toolkit
+#
+# A library of BASH utility routines.
+# -----------------------------------
+# Copyright 2011 Rajiv Narayan
+# -----------------------------------
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Current version
+BTK_VERSION="1.0-rc1"
+# Path to bashtk script
+#BASHTK_PATH=`type -p bashtk`
+# works with bash >= v3
+BTK_PATH=$BASH_SOURCE
+
+# global variables used by various functions.
+# Note Change these directly can have unintended effects.
+BTK_TIC='' #timer count
+BTK_ENABLE_LOG=0 #enable logging
+BTK_LOG_FILE='' #log filename
+BTK_LOG_DATE_FORMAT='%b %e %H:%M:%S' #date format for log
+BTK_DEBUG=0 #enable / disable debug messages
+BTK_BCSCALE=4 #precision for bc calculator
+
+usageHelp="\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
+A library of BASH utility routines.
+Copyright 2011 Rajiv Narayan
+
+Usage: bashtk [options]
+Options:
+-q Quiet mode. Do not print any message when sourced
+-h Print this help message and exit
+
+To use the library, simply source the file using:
+source $BTK_PATH
+
+Type \033[0;32;40mbtkhelp\033[0m for a list of available commands.
+"
+
+btkhelp()
+{
+    if [ -z "$1" ]; then
+	echo -e "\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
+	echo "List of available commands:"
+
+	awk '
+/^### .*/ {gsub ("^#* *",""); print "\033[4;1;36;40m""\n"$0"\033[0m";}
+/^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];}
+' $BTK_PATH
+
+	
+echo
+	echo "Type btkhelp <command> for help on a specific command."
+    else
+	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
+if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];} 
+else if (/^#.*/) {gsub("^#* *","  "); print};
+}' $BTK_PATH
+    fi
+}
+
+AWK_COLORIZE='function colorize(word, color)
+{
+c["red"] = "^[[1;31;40m"
+c["green"] = "^[[1;32;40m"
+c["yellow"] = "^[[1;33;40m"
+c["blue"] = "^[[1;34;40m"
+c["magenta"] = "^[[1;35;40m"
+if (line ~ word)
+{ split (line, a, word)
+line=a[1] c[color] (word) "^[[0;37;40m" a[2]
+}'
+
+### IO functions
+
+## file2array: Read a text file into an array.
+#  Usage: file2array FILENAME
+#  Reads each line in FILENAME into an array
+#  Example
+#  x=(`file2array foo.txt`)
+#  echo "number of elements:" ${#x[@]}
+#  echo ${x[@]}
+file2array()
+{
+    local f="$1"
+    if (isFile $f); then
+	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
+	for e in "${arr[@]}";
+	  do
+	  echo $e
+	  done	
+    fi
+}
+
+## file2list: Read a text file into an list.
+#  Usage: file2list FILENAME
+#  Reads each line in FILENAME into a list. Blank lines and lines
+#  beginning with a '#' are ignored.
+#
+#  Example:
+#  x=(`file2list foo.txt`)
+#  echo ${x[@]}
+file2list()
+{
+    local f="$1"
+    if (isFile $f); then
+	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
+    fi
+}
+
+# data structures
+# TODO: hash table : 
+# http://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
+
+#########################
+### Date / Time functions
+#########################
+
+## tic: Start timer.
+#  Usage: tic
+#  Initializes the timer. Use toc to get the time elapsed.
+#  See also: toc 
+tic () 
+{
+    BTK_TIC=$(date +%s)
+}
+
+## toc: Print time elapsed in seconds.
+#  Usage: toc
+#  Prints the seconds elapsed since tic was called. Note must first
+#  call tic before calling toc
+#
+#  Example:
+#  tic
+#  echo "do something"
+#  elapsed=$(toc)
+#  echo "${elapsed}s elapsed."
+toc()
+{
+    local _TOC=$(date +%s)
+    if [ -n "$BTK_TIC" ]; then
+	local SECS_ELAPSED=$(($_TOC - $BTK_TIC))
+	echo "${SECS_ELAPSED}"
+	return 0
+    else
+	echo "Run tic() before calling toc()"
+	return 1
+    fi
+}
+
+######################
+### Messages and Logging
+######################
+
+# _getAttrValue: Get terminal attribute values. 
+# private function
+_getAttrValue()
+{
+    local val=''
+    local stat=0
+    case "$1" in
+	BLACK) val=0;;
+	RED) val=1;;
+	GREEN) val=2;;
+	YELLOW) val=3;;
+	BLUE) val=4 ;;
+	MAGENTA) val=5;;
+	CYAN) val=6;;
+	WHITE) val=7;;
+	DEFAULT) val='sgr0';;
+	RESET) val='sgr0';;
+	BOLD) val='bold';;
+	UNDERLINE) val='smul';;
+	BLINK) val='blink';;
+	REVERSE) val='rev';;
+	*) stat=1;;
+    esac
+    echo $val
+    return $stat
+}
+
+## color: Set terminal color and attributes.
+#  Usage: color FGCOLOR [ATTR1] ...
+#  Set terminal foreground color to FGCOLOR and sets optional
+#  attributes ATTR. Colors can be one of [red, green, yellow, blue,
+#  magenta, cyan, white, black]. ATTR can be [bold, underline,
+#  reverse]. Calling color without arguments or setting COLOR to
+#  'reset' sets the color to the default.
+#
+#  Example:
+#  color red
+#  color red underline reverse
+#
+#  See also: colorBG
+color()
+{
+    local fgcol=$(upper "$1")
+    fgcol=${fgcol:-RESET}
+    bgcol=${bgcol:-RESET}
+    shift $(min 1 $#)
+    local effect=(`upper "$@"`)
+    local fgval=$(_getAttrValue $fgcol)
+    if [ -n "$effect" ]; then
+	for e in "${effect[@]}"; do
+	    local effectval=$(_getAttrValue $e)
+	    if [[ -n "$effectval" ]]; then
+		tput $effectval
+	    fi
+	done
+    fi
+
+    if [ "$fgcol" == 'DEFAULT' -o "$fgcol" == 'RESET' ]; then
+	tput $fgval
+    else
+	if [[ -n "$fgval" ]]; then 
+	    tput setaf $fgval
+	fi
+    fi
+
+}
+
+## colorBG: Set terminal foreground, background color and attributes.
+#  Usage: colorBG FGCOLOR [BGCOLOR] [ATTR1] ...
+#  Set terminal foreground color to FGCOLOR, background color to
+#  BGCOLOR and sets optional attributes ATTR. Colors can be one of
+#  [red, green, yellow, blue, magenta, cyan, white, black]. ATTR can
+#  be [bold, underline, reverse]. Calling color without arguments or
+#  setting COLOR to 'reset' sets the color to the default.
+#
+#  Example:
+#  color red 
+#  color red white bold underline
+#
+#  See also: color
+colorBG()
+{
+    local fgcol=$(upper "$1")
+    local bgcol=$(upper "$2")
+    fgcol=${fgcol:-RESET}
+    bgcol=${bgcol:-RESET}
+    shift $(min 2 $#)
+    local effect=(`upper "$@"`)
+    color $fgcol "${effect[@]}"
+    local bgval=$(_getAttrValue $bgcol)
+    if [[ -n "$bgval" ]]; then
+	tput setab $bgval
+    fi
+}
+
+## msg: Print and log messages.
+#  Usage: msg TEXT [FGCOLOR] [ATTR]
+#  Displays TEXT using optional attributes FGCOLOR and ATTR. Also
+#  writes the message to logfile if logging is on.
+#
+#  Example:
+#  msg 'This is an alert' red bold
+#
+#  See also: color, log
+msg()
+{
+    local m="$1"
+    shift
+    color "$@"
+    echo "$m"
+    color reset
+    log "$m"
+}
+
+## logon: Begin logging to file.
+#  Usage: logon LOGFILE
+#  Turns on logging and specifies the logfile. All subsequent calls to
+#  msg or log will be written to the logfile.
+#  See also: logoff, log
+logon()
+{
+    if [ -n "$1" ]; then
+	BTK_LOG_FILE="$1"
+	touch "$BTK_LOG_FILE"
+	BTK_ENABLE_LOG=1
+	log '--- Begin log ---'
+    else
+	echo "logon: must specify logfile"
+    fi
+}
+
+## logoff: Stop logging to file.
+#  Usage: logoff [MSG]
+#  Write End log message to log and stops logging. 
+#  See also: logon
+logoff()
+{
+    local m="${@:---- End log ---}"
+    log "$m"
+    logsuspend
+}
+
+## logsuspend: Temporarily stop logging to file.
+#  Usage: logsuspend
+#  See also: logresume
+logsuspend()
+{
+    BTK_ENABLE_LOG=0
+}
+
+## logresume: Resume logging to file.
+#  Usage: logresume
+#  See also: logsuspend
+logresume()
+{
+    if [ "$BTK_ENABLE_LOG" -eq 0 -a -f "$BTK_LOG_FILE" ]; then
+	logon "$BTK_LOG_FILE"
+    elif [ ! -f "$BTK_LOG_FILE" ]; then
+	echo 'Logfile does not exist, cannot resume.'
+    fi
+}
+
+## log: Write a message to a logfile.
+#  Usage log MSG
+#  Writes MSG to the logfile specified by logon. Note will fail
+#  silently if logging has not been enabled.
+#  See also: logon, logoff, msg
+log()
+{
+    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+	local m="$@"
+	local ts=`date +"$BTK_LOG_DATE_FORMAT"`
+	if [ -n "$m" ]; then
+	    echo "$ts $m" >> "$BTK_LOG_FILE"
+	else
+	    echo "$ts -- Empty message --" >> "$BTK_LOG_FILE"
+	fi
+    fi
+}
+
+## logcat: Display contents of the log file.
+#  Usage: logcat
+logcat()
+{
+    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+	cat "$BTK_LOG_FILE"
+    else
+	echo "Logging not enabled"
+    fi
+}
+
+## logtail: Display the last part of the logfile.
+#  Usage: logtail [N]
+#  Prints the last 10 lines of the log file. If N is specified prints
+#  the last N lines.
+
+logtail()
+{
+    local n=${1:-10}
+    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+        tail -"$n" "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## loghead: Display the first part of the logfile.
+#  Usage: loghead [N]
+#  Prints the first 10 lines of the log file. If N is specified prints
+#  the first N lines.
+loghead()
+{
+    local n=${1:-10}
+    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+        head -"$n" "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## logname: Displays path of the current logfile.
+#  Usage: logname
+logname()
+{
+    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+	echo "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## logreset: Resets the content of the current logfile.
+#  Usage: logreset
+logreset()
+{
+    if [ $BTK_ENABLE_LOG -eq 1 ]; then
+	rm -f "$BTK_LOG_FILE"
+	logon "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## printHelpAndExit: Display message and quit.
+#  Usage: printHelpAndExit EXIT_CODE
+#  Prints the variable $usageHelp if it exists and exits with
+#  EXIT_CODE
+printHelpAndExit()
+{
+    if ( isDefined $usageHelp ); then
+	echo -e "$usageHelp"
+    fi
+    exit $1
+}
+
+## printErrorHelpAndExit: Print error message, help and quit.
+#  Usage: printErrorHelpAndExit ERRMSG
+#  Prints ERRMSG and the variable usageHelp if it exists. Exits with
+#  error code 1.
+
+printErrorHelpAndExit()
+{
+    echo
+    echo "Error: $@"
+    echo
+    printHelpAndExit 1
+}
+
+## printErrorAndExit: Print error message and quit.
+#  Usage: printErrorAndExit ERRMSG
+#  Prints ERRMSG and exits with error code 1
+
+printErrorAndExit()
+{
+        echo
+        echo "Error: $@"
+        echo
+	exit 1
+}
+
+#################
+### Logical Tests
+#################
+
+## isEmpty: Test if a string is empty.
+# example 
+# if (isEmpty "foo"); then echo 'string is not empty'; fi
+isEmpty()
+{
+    [[ -z "$1" ]]
+}
+
+## isDefined: Test if variable exists.
+#  Example:
+#  y='foo'
+#  unset x
+#  if (isDefined y); then echo 'y is defined'; fi
+#  if (! isDefined x); then echo 'x is no defined'; fi
+isDefined()
+{
+    #[[ ${!1-X} == ${!1-Y} ]]
+    [[ ! -z "${1+x}" ]]
+}
+
+## isNumeric: Test if a variable is numeric.
+#  Usage: isNumeric VAR
+#  Returns an exit code of 0 if VAR is numeric or 1 if not.
+#  Example:
+#  if (isNumeric 10.5); then echo 'is a number'; fi
+isNumeric()
+{
+ [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
+}
+
+## isInteger: Test if a variable is an integer.
+#  Usage: isInteger VAR
+#
+#  if (isInteger -10); then echo 'is an integer'; fi 
+isInteger()
+{
+    [ "$1" -eq "$1" 2>/dev/null ]
+}
+
+##################
+### String Utilities
+##################
+
+## upper: Convert string to uppercase.
+upper()
+{
+    echo "$@" | tr '[:lower:]' '[:upper:]'
+}
+
+
+## lower: Convert string to lowercase.
+lower()
+{
+    echo "$@" | tr '[:upper:]' '[:lower:]'
+}
+
+## capitalize: Convert first letter of string to uppercase.
+capitalize()
+{
+    local first="$1"
+    shift $(min 1 $#)
+    local rest="$@"
+    echo `upper ${first:0:1}``lower "${first:1} $rest"`
+}
+
+## strDeblank: Remove trailing spaces from the end of a string.
+strDeblank()
+{
+    echo "$@" | sed 's/ *$//'
+}
+
+## strTrim: Remove leading and trailing spaces from a string.
+strTrim()
+{
+    echo "$@" | sed 's/^ *//; s/ *$//'
+}
+
+## strTok: Split string into parts separated by a delimiter.
+#  Usage: strTok STR DLM
+#  Splits STR into parts based on the delimiter DLM. The delimiter
+#  defaults to ' ' if not specified
+#
+#  Example
+#  x=(`strTok 'foo:bar:abc' ':'`)
+#  echo "number of parts:" ${#x[@]}
+#  echo ${x[@]}
+strTok()
+{
+    local tok="$2"
+    if (isEmpty $tok); then
+	tok=' '
+    fi
+    local arr=$(echo "$1"| tr "$tok" '\n')
+    for e in ${arr[@]}; do
+	echo $e
+    done
+}
+
+##################
+### Math utilities
+##################
+
+## setBCScale: Set the precision for BC output.
+#  Usage: setBCScale integer
+#  If called without and argument defaults to 4.
+#  See also getBCScale
+setBCScale()
+{
+    BTK_BCSCALE=${1:-4}
+}
+
+## getBCScale: Get the current scale setting for BC.
+#  Usage: getBCScale
+#  Default is 4
+#  See also setBCScale 
+getBCScale()
+{
+    echo ${BTK_BCSCALE}
+}
+
+## sum: Calculate the sum of elements in a list.
+#  Usage: sum N1 N2 N3 ...
+#  Prints the sum of numbers in the list.
+#  Example:
+#  x=(`seq 1 5`)
+#  sum ${x[@]}
+sum()
+{
+    local x=( $@ )
+    echo ${x[@]}|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
+    return 0
+}
+
+## min: Calculate the minimum of a list of numbers.
+min()
+{
+    local x=( $@ )
+    if [ ${#x[@]} -gt 0 ]; then
+	echo ${x[@]}|awk '{min=$1; for(i=1;i<=NF;i++){if ($i<min) {min=$i;}}; print min}'
+	return 0
+    else
+	return 1
+    fi
+}
+
+## max: Calculate the maximum of a list of numbers.
+max()
+{
+    local x=( $@ )
+    if [ ${#x[@]} -gt 0 ]; then
+	echo ${x[@]}|awk '{max=$1; for(i=1;i<=NF;i++){if ($i>max) {max=$i;}}; print max}'
+	return 0
+    else
+	return 1
+    fi
+}
+
+## length: Length of a list.
+#  Usage: length L1 L2 L3 ...
+length()
+{
+    local x=( $@ )
+    echo ${#x[@]}
+    return 0
+}
+
+## pi: Value of PI.
+#  Usage: pi
+#  Prints the value of PI. The precision is determined by setBCScale.
+#
+#  See also setBCScale
+pi()
+{
+    echo "scale=$(getBCScale); 4*a(1)"| bc -l 
+}
+
+## log2: Base 2 logarithm.
+#  Usage: log2 N1 N2 N3 ...
+log2()
+{
+    local x=( $@ )
+    for e in ${x[@]}; do
+	echo "scale=$(getBCScale); l($e)/l(2)"|bc -l
+    done
+}
+
+## pow2: Base 2 power of numbers.
+#  Usage: pow2 N1 N2 N3 ...
+#  Calculates 2^N for a list of numbers.
+pow2()
+{
+    local x=( $@ )
+    for e in ${x[@]}; do
+	if (isInteger $e); then
+	    echo "scale=$(getBCScale); 2^$e"|bc
+	else
+	    echo "scale=$(getBCScale); e($e*l(2))"|bc -l
+	fi
+    done
+}
+
+## sqrt: Square root of non-negative numbers.
+#  Usage: sqrt N1 [N2] ...
+sqrt()
+{
+    local x=( $@ )
+    for e in ${x[@]}; do
+        if (float_cond "$e>=0"); then
+            echo "scale=$(getBCScale); sqrt($e)"|bc
+        else
+	    echo "$e is negative"
+	    return 1
+        fi
+    done
+    return 0
+}
+
+## mean: Compute the average of a list of numbers.
+#  Usage: mean N1 N2 N3 ...
+#  Returns the mean of the list. The precision of the result is
+#  determined by setBCScale.
+#  See also: setBCScale
+mean()
+{
+    local x=( $@ )
+    echo "scale=$(getBCScale);" $(sum ${x[@]})/${#x[@]}|bc
+}
+
+## calc: Evaluate a floating point number expression.
+#  Usage: calc EXPRESSION
+#  Evaluates EXPRESSION using bc. Writes the result of EXPRESSION to
+#  standard out. Sets exit code to 0 if the expression was evaluated
+#  successfully and 1 if not. Refer to the man page of bc to see
+#  available functions.
+#
+#  Example: 
+#  calc 'sqrt(2) / 3.0' 
+#
+#  See also: float_cond
+
+# From: http://www.linuxjournal.com/content/floating-point-math-bash
+function calc()
+{
+    local stat=0
+    local result=0.0
+    if [[ $# -gt 0 ]]; then
+        result=$(echo "scale=$(getBCScale); $*" | bc -q -l 2>/dev/null)
+        stat=$?
+        if [[ $stat -eq 0  &&  -z "$result" ]]; then stat=1; fi
+    fi
+    echo $result
+    return $stat
+}
+
+## float_cond: Evaluate a floating point number conditional expression.
+#  Usage: float_cond CONDITIOAL_EXPRESSION
+#  Evaluates CONDITIONAL_EXPRESSION and sets the return/status code to
+#  zero if the expression is true and one if it's false.
+#  Example: if (float_cond '12.0 > 3.0'); then echo true; fi
+#  See also: float_eval
+
+# From: http://www.linuxjournal.com/content/floating-point-math-bash
+function float_cond()
+{
+    local cond=0
+    if [[ $# -gt 0 ]]; then
+        cond=$(echo "$*" | bc -q 2>/dev/null)
+        if [[ -z "$cond" ]]; then cond=0; fi
+        if [[ "$cond" != 0  &&  "$cond" != 1 ]]; then cond=0; fi
+    fi
+    local stat=$((cond == 0))
+    return $stat
+}
+
+array2arg()
+{
+    local x=( $@ )
+    if (isDefined x); then
+	echo ${x[@]}
+    fi
+}
+
+# arg2array
+#  Example:
+#  x=(`arg2array 1 2 3 4`)
+#  echo ${#x[@]}
+arg2array()
+{
+    local x="$@"
+    if [ `length $x` -gt 0 ]; then
+	echo "$x"|tr ' ' '\n'
+	return 0
+    else
+	return 1
+    fi
+}
+
+## abs: Absolute value.
+#  Usage: abs N1 [N2] ...
+#  Computes the absolute value of a list of numbers.
+
+#TODO: test if numeric
+abs()
+{
+    local x=( $@ )
+    if [ ${#x[@]} -gt 0 ]; then
+        echo ${x[@]}|awk '{for(i=1;i<=NF;i++){print ($i>=0) ? $i : -$i;}}'
+        return 0
+    else
+        return 1
+    fi
+}
+
+## sign: Signum function
+#  Usage: sign N1 [N2] ...
+#  Returns 1 if the number is positive, -1 if its negative and 0 if it
+#  is equal to zero.
+sign()
+{
+    local x=( $@ )
+    for e in "${x[@]}"
+    do
+      if (isNumeric $e); then
+	  if ( float_cond "$e > 0" ); then
+	      echo 1
+	  elif ( float_cond "$e < 0" ); then
+	      echo -1
+	  else
+	      echo 0
+	  fi
+      else
+	  echo "Error $e is not numeric"
+	  return 1
+      fi
+    done
+    return 0
+}
+
+## round: Round to nearest integer
+#  Usage: round N1 [N2] ...
+round()
+{
+    BC_ROUND="define round(x) { scale=0; if (x>0) return (x+0.5)/1
+    else return (x-0.5)/1 }"
+    local x=( $@ )
+    for e in "${x[@]}"
+    do
+      if (isNumeric $e); then
+	 echo $BC_ROUND"round($e)"|bc
+      else
+	  echo "Error $e is not numeric"
+	  return 1
+      fi
+    done
+    return 0
+}
+
+## ceil: Round up to positive infinity.
+#  Usage: ceil N1 [N2] ...
+#  Returns the smallest integer that is not less than N1.
+ceil() { 
+# BC solution
+# See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
+    local x=( $@ )
+    local BC_CEIL="define ceil(x) { auto savescale; savescale = scale;
+    scale = 0; if (x>0) { if (x%1>0) result = x+(1-(x%1)) else result
+    = x} else result = -1*floor(-1*x); scale = savescale; return
+    result }"
+    local BC_FLOOR="define floor(x) { auto savescale; savescale =
+    scale; scale = 0; if (x>0) result = x-(x%1) else result =
+    -1*ceil(-1*x); scale = savescale; return result }" 
+# An Alternative Python soluton
+#    python -c "import sys; from math import ceil; print
+#    ceil(float(sys.argv[1]))" $e
+
+    for e in "${x[@]}"; do
+	if (isNumeric $e); then
+	    echo -e "scale=$(getBCScale)\n"$BC_CEIL$BC_FLOOR"ceil($e)"|bc
+	else
+	    echo "Error $e is not numeric"
+	    return 1
+	fi
+    done
+    return 0
+}
+
+## floor: Round down value
+#  Usage: floor N1 [N2] ...
+#  Returns the largest integer that is not greater than N.
+floor() { 
+# BC solution
+# See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
+    local x=( $@ )
+    local BC_CEIL="define ceil(x) { auto savescale; savescale = scale;
+    scale = 0; if (x>0) { if (x%1>0) result = x+(1-(x%1)) else result
+    = x} else result = -1*floor(-1*x); scale = savescale; return
+    result }"
+    local BC_FLOOR="define floor(x) { auto savescale; savescale =
+    scale; scale = 0; if (x>0) result = x-(x%1) else result =
+    -1*ceil(-1*x); scale = savescale; return result }" 
+
+    for e in "${x[@]}"; do
+	if (isNumeric $e); then
+	    echo -e "scale=$(getBCScale)\n"$BC_CEIL$BC_FLOOR"floor($e)"|bc
+	else
+	    echo "Error $e is not numeric"
+	    return 1
+	fi
+    done
+    return 0
+}
+
+# std
+# var
+# prctile
+
+##################
+### File utilities
+##################
+
+## isDir: Test if directory exists.
+#  Usage: isDir DIRNAME
+#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
+#
+# Example
+# if ! (isDir myfolder); then echo 'folder does not exist'; fi
+isDir()
+{
+    [[ -d "$1" ]]
+}
+
+## isFile: Test if file exists.
+#  Usage: isFile FILENAME
+#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
+#
+#  Example 
+#  if (isFile myfile.txt); then echo 'file exists'; fi
+isFile()
+{
+    [[ -f "$1" ]]
+}
+
+## require: Test if a command is available.
+#  Usage: require CMD
+#  Returns an exit code of 0 if CMD exists or >0 otherwise
+#
+#  Example:
+#  if (require ls); then echo 'ls exists'; fi
+require () 
+{ 
+    type -p "$1" 2>&1 >/dev/null
+}
+
+## fileParts: Split a file into path, file and extension.
+#  Usage: fileParts FILENAME
+#  Prints the path, file and extension of FILENAME. Can be read into
+#  an array.
+#
+#  Example
+#  parts=(`fileParts ~/file.txt`)
+#  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
+fileParts() 
+{
+    local f="$1"
+    if ! $(isEmpty "$f"); then
+	local bn=$(basename $f)
+	local dn=$(dirname $f)
+	echo $dn
+	echo ${bn%%\.*}
+	local ext=${bn#*\.}
+	if [ "$ext" != "$bn" ]; then
+	    echo ".$ext"
+	else
+	    echo ""
+	fi
+	return 0 #success
+    else
+	return 1 #fail
+    fi
+}
+
+## fullFile: Build full filename from parts
+#  Usage: fullFile D1 D2 ... FILE
+#
+#  Example:
+#  fullFile foo bar zog.txt
+fullFile()
+{
+    local f="$1"
+    shift 1
+    for part in $@
+    do
+	if [ -z "$f" -a -z "$part" ]; then
+	    f="$f$part"
+	elif [ "${f:(-1):1}" == '/' -a "${part:1:1}" == '/' ]; then 
+	    f="$f${part:1}"
+	elif [ "${f:(-1):1}" == '/' -o "${part:1:1}" == '/' ]; then
+	    f="$f$part"
+	else
+	    f="$f/$part"
+	fi
+    done
+    echo $f
+    return 0 #success
+}
+
+# fileCheck: Check if file exists
+#  Usage: fileCheck FILENAME
+#  If FILENAME does not exist, prints error and exits
+fileCheck()
+{
+ [ ! -f "$1" ] && printErrorAndExit "File:$1 missing"
+}
+
+## dirCheck: Check if folder exists
+#  Usage: dirCheck dirname 
+#  If dirname does not exist, prints an error and exits
+dirCheck()
+{
+ [ ! -d "$1" ] && printErrorAndExit "Folder:$1 missing"
+}
+
+## absPath: Resolve the absolute path to a file
+#  Usage: absPath filename 
+#  Prints the resolved path
+#
+#  Example:
+#  absPath ~/myfile.txt
+absPath()
+{
+    local p="$1"
+    local d="$(dirname -- "$p")"
+    if [ $d == '~' ]; then
+	d=$(readlink -f ~)
+    else
+	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
+    fi
+    fullFile "$d" "$(basename $p)"
+
+#    if ( require realpath); then
+#	realpath -s "$p"
+#    elif ( require python); then
+#	python -c "import os,sys; print os.path.realpath(sys.argv[1])" "$prg"
+#    fi
+}
+
+# Main
+checkDep()
+{
+    local deps=( "$@" )
+    for d in "${deps[@]}";
+    do
+      require $d
+      if [ ! $? -eq 0 ]; then
+	  echo "Warning: $d is missing. BaskTk may not function properly without it."
+      fi
+    done
+}
+
+# Check if dependencies exist
+checkDep 'bc' 'python' 'awk' 'readlink'
+if [  "$BASH_SOURCE" != "$0" ]; then
+    # library was sourced
+    if [ "$1" != '-q' ]; then
+	echo "Using BashTk v$BTK_VERSION"
+    fi
+else
+    # Called directly
+    if [ "$1" != '-q' ]; then
+	printHelpAndExit
+    fi
+fi

@@ -1,0 +1,14 @@
+[0;33;40mBashTk: BASH Toolkit v1.0-rc1[0m
+A library of BASH utility routines.
+Copyright 2011 Rajiv Narayan
+
+Usage: bashtk [options]
+Options:
+-q Quiet mode. Do not print any message when sourced
+-h Print this help message and exit
+
+To use the library, simply source the file using:
+source /xchip/cogs/matlib/bin/bashtk
+
+Type [0;32;40mbtkhelp[0m for a list of available commands.
+
