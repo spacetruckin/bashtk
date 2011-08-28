@@ -1,16 +1,40 @@
 #!/bin/bash
+source ./bashtk
 
-source /xchip/cogs/matlib/bin/bashtk
+#start a timer
+tic
+#start logging
+logon bashtk.log
+logreset
 
-echo testing bashtk
-msg 'this is in red' red
-msg 'blue underlined' blue underline
+msg 'Message functions' red underline
+msg 'msg supports color and logging' green
+msg 'This is in light-blue underlined' blue bold underline
 color green
-echo 'green'
+echo 'Im green'
 color
-echo 'default color'
+echo 'Back to default color'
+echo
+msg 'Math functions' red underline
 x=(1 2 3 4 5)
-echo "x='${x[@]}'"
-echo 'length:'`length ${x[@]}`
-echo 'sum:'`sum ${x[@]}`
-echo 'mean:'`mean ${x[@]}`
+echo "x=${x[@]}"
+msg 'length x='`length ${x[@]}`
+# commands also support also pipes
+msg 'sum x ='`sum ${x[@]}`
+msg 'mean x ='`mean ${x[@]}`
+msg 'Commands can be piped: seq 1 5|pow2|sqrt'
+seq 1 5 | pow2 |sqrt
+msg "Evaluate expressions: echo 'sqrt(2)*100/2' | calc"
+echo 'sqrt(2)*100/2' | calc
+msg
+msg 'String utilities' red underline
+echo 'upperCase'|upper
+echo 'LOwercase'|lower
+echo 'capiTalize'|capitalize
+echo '  >strtrim<  '|strTrim
+
+echo -e "\nPlayback log\n"
+logcat
+logoff
+#time elapsed
+echo "Time elapsed $(toc)(s)."
