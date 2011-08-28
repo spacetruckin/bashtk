@@ -1,4 +1,4 @@
-[0;33;40mBashTk: BASH Toolkit v1.0-rc1[0m
+BashTk: BASH Toolkit v1.0-rc1
 A library of BASH utility routines.
 Copyright 2011 Rajiv Narayan
 
@@ -10,5 +10,5 @@ Options:
 To use the library, simply source the file using:
 source /xchip/cogs/matlib/bin/bashtk
 
-Type [0;32;40mbtkhelp[0m for a list of available commands.
+Type btkhelp for a list of available commands.
 
