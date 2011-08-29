@@ -126,12 +126,18 @@ inputType()
 isPipeIn()
 {
     check_help $1 $FUNCNAME || return 1
-    local src=$(readlink /proc/self/fd/0)
-    if [[ $src =~ ^pipe: ]]; then
-	return 0
-    else
-	return 1
+    if isLinux; then
+	local src=$(readlink /proc/self/fd/0)
+	if [[ $src =~ ^pipe: ]]; then
+	    return 0
+	fi
+    elif isMac; then
+	x=$(stat -f %HT /dev/fd/0)
+	if [[ $x =~ 'Fifo' ]]; then
+	    return 0
+	fi
     fi
+    return 1
 }
 
 ## isStdIn: Test if script received standard input.
