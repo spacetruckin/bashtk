@@ -87,6 +87,7 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
 #  in=(`input "$@"`)
 input()
 {
+    $CHECK_HELP
     local SAVEIFS=$IFS
     IFS=$(echo -en "\n\b")
     local x=( "$@" )
@@ -117,6 +118,7 @@ inputType()
 #  Returns 0 if a pipe input was detected, 1 if not
 isPipeIn()
 {
+    $CHECK_HELP
     local src=$(readlink /proc/self/fd/0)
     if [[ $src =~ ^pipe: ]]; then
 	return 0
@@ -130,6 +132,7 @@ isPipeIn()
 #  Returns 0 if a standard input was detected, 1 if not
 isStdIn()
 {
+    $CHECK_HELP
     local src=$(file `readlink /proc/self/fd/0`)
     if [[ $src =~ character\ special ]]; then
 	return 0
@@ -143,6 +146,7 @@ isStdIn()
 #  Returns 0 if a file redirection input was detected, 1 if not
 isFilein()
 {
+    $CHECK_HELP
     if ! isPipeIn && ! isStdin; then
 	return 0
     else
@@ -159,6 +163,7 @@ isFilein()
 #  echo ${x[@]}
 file2array()
 {
+    $CHECK_HELP
     local f="$1"
     if isFile $f; then
 	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
@@ -179,6 +184,7 @@ file2array()
 #  echo ${x[@]}
 file2list()
 {
+    $CHECK_HELP
     local f="$1"
     if isFile $f; then
 	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
@@ -199,6 +205,7 @@ file2list()
 #  See also: toc 
 tic () 
 {
+    $CHECK_HELP
     BTK_TIC=$(date +%s)
 }
 
@@ -214,6 +221,7 @@ tic ()
 #  echo "${elapsed}s elapsed."
 toc()
 {
+    $CHECK_HELP
     local _TOC=$(date +%s)
     if [[ -n $BTK_TIC ]]; then
 	local SECS_ELAPSED=$(($_TOC - $BTK_TIC))
@@ -233,6 +241,7 @@ toc()
 # private function
 _getAttrValue()
 {
+    $CHECK_HELP
     local val=''
     local stat=0
     case "$1" in
@@ -271,6 +280,7 @@ _getAttrValue()
 #  See also: colorBG
 color()
 {
+    $CHECK_HELP
     local fgcol=$(upper "$1")
     fgcol=${fgcol:-RESET}
     bgcol=${bgcol:-RESET}
@@ -311,6 +321,7 @@ color()
 #  See also: color
 colorBG()
 {
+    $CHECK_HELP
     local fgcol=$(upper "$1")
     local bgcol=$(upper "$2")
     fgcol=${fgcol:-RESET}
@@ -335,6 +346,7 @@ colorBG()
 #  See also: color, log
 msg()
 {
+    $CHECK_HELP
     local m="$1"
     shift
     color "$@"
@@ -350,6 +362,7 @@ msg()
 #  See also: logoff, log
 logon()
 {
+    $CHECK_HELP
     if [[ -n $1 ]]; then
 	BTK_LOG_FILE="$1"
 	touch "$BTK_LOG_FILE"
@@ -366,6 +379,7 @@ logon()
 #  See also: logon
 logoff()
 {
+    $CHECK_HELP
     local m="${@:---- End log ---}"
     log "$m"
     logsuspend
@@ -376,6 +390,7 @@ logoff()
 #  See also: logresume
 logsuspend()
 {
+    $CHECK_HELP
     BTK_ENABLE_LOG=0
 }
 
@@ -384,6 +399,7 @@ logsuspend()
 #  See also: logsuspend
 logresume()
 {
+    $CHECK_HELP
     if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
 	logon "$BTK_LOG_FILE"
     elif [[ ! -f $BTK_LOG_FILE ]]; then
@@ -398,6 +414,7 @@ logresume()
 #  See also: logon, logoff, msg
 log()
 {
+    $CHECK_HELP
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	local m="$@"
 	local ts=`date +"$BTK_LOG_DATE_FORMAT"`
@@ -413,6 +430,7 @@ log()
 #  Usage: logcat
 logcat()
 {
+    $CHECK_HELP
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	cat "$BTK_LOG_FILE"
     else
@@ -427,6 +445,7 @@ logcat()
 
 logtail()
 {
+    $CHECK_HELP
     local n=${1:-10}
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
         tail -"$n" "$BTK_LOG_FILE"
@@ -441,6 +460,7 @@ logtail()
 #  the first N lines.
 loghead()
 {
+    $CHECK_HELP
     local n=${1:-10}
     if [ $BTK_ENABLE_LOG -eq 1 ]; then
         head -"$n" "$BTK_LOG_FILE"
@@ -453,6 +473,7 @@ loghead()
 #  Usage: logname
 logname()
 {
+    $CHECK_HELP
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	echo "$BTK_LOG_FILE"
     else
@@ -464,6 +485,7 @@ logname()
 #  Usage: logreset
 logreset()
 {
+    $CHECK_HELP
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	rm -f "$BTK_LOG_FILE"
 	logon "$BTK_LOG_FILE"
@@ -478,6 +500,7 @@ logreset()
 #  EXIT_CODE
 printHelpAndExit()
 {
+    $CHECK_HELP
     if isDefined $usageHelp; then
 	echo -e "$usageHelp"
     fi
@@ -491,6 +514,7 @@ printHelpAndExit()
 
 printErrorHelpAndExit()
 {
+    $CHECK_HELP
     echo
     echo "Error: $@"
     echo
@@ -503,10 +527,11 @@ printErrorHelpAndExit()
 
 printErrorAndExit()
 {
-        echo
-        echo "Error: $@"
-        echo
-	exit 1
+    $CHECK_HELP
+    echo
+    echo "Error: $@"
+    echo
+    exit 1
 }
 
 #################
@@ -518,6 +543,7 @@ printErrorAndExit()
 # if (isEmpty "foo"); then echo 'string is not empty'; fi
 isEmpty()
 {
+    $CHECK_HELP
     [[ -z $1 ]]
 }
 
@@ -529,6 +555,7 @@ isEmpty()
 #  ! isDefined $x && echo 'x is not defined'
 isDefined()
 {
+    $CHECK_HELP
     #[[ ${!1-X} == ${!1-Y} ]]
     [[ ! -z "${1+x}" ]]
 }
@@ -540,7 +567,8 @@ isDefined()
 #  if (isNumeric 10.5); then echo 'is a number'; fi
 isNumeric()
 {
- [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
+    $CHECK_HELP
+    [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
 }
 
 ## isInteger: Test if a variable is an integer.
@@ -549,6 +577,7 @@ isNumeric()
 #  if isInteger -10; then echo 'is an integer'; fi 
 isInteger()
 {
+    $CHECK_HELP
     [ "$1" -eq "$1" 2>/dev/null ]
     #[[ $1 -eq $1 ]] 2>/dev/null
 }
@@ -560,6 +589,7 @@ isInteger()
 ## upper: Convert string to uppercase.
 upper()
 {
+    $CHECK_HELP
     echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
 }
 
@@ -567,12 +597,14 @@ upper()
 ## lower: Convert string to lowercase.
 lower()
 {
+    $CHECK_HELP
     echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
 }
 
 ## capitalize: Convert first letter of string to uppercase.
 capitalize()
 {
+    $CHECK_HELP
     local s="$(input "$@")"
     local f=`upper "${s:0:1}"`
     local r=`lower "${s:1}"`
@@ -582,12 +614,14 @@ capitalize()
 ## strDeblank: Remove trailing spaces from the end of a string.
 strDeblank()
 {
+    $CHECK_HELP
     echo "$(input $@)" | sed 's/ *$//'
 }
 
 ## strTrim: Remove leading and trailing spaces from a string.
 strTrim()
 {
+    $CHECK_HELP
     echo "$(input $@)" | sed 's/^ *//; s/ *$//'
 }
 
@@ -603,6 +637,7 @@ strTrim()
 #  echo ${x[@]}
 strTok()
 {
+    $CHECK_HELP
     local tok=' '
     local s=(`input`)
     while getopts 't:s:' opt; do
@@ -623,6 +658,7 @@ strTok()
 #  the output at a maximum length.
 strRep()
 {
+    $CHECK_HELP
     local s="$1"
     local n="${2:-0}"
     local maxlen="$3"
@@ -643,6 +679,7 @@ strRep()
 #  Highlights each term in the input data.
 colorize()
 {
+    $CHECK_HELP
     local terms=( "$@" )
     local col='\033[1;31m'
     local reset='\033[0m'
@@ -667,6 +704,7 @@ colorize()
 #  See also getBCScale
 setBCScale()
 {
+    $CHECK_HELP
     BTK_BCSCALE=${1:-4}
 }
 
@@ -676,6 +714,7 @@ setBCScale()
 #  See also setBCScale 
 getBCScale()
 {
+    $CHECK_HELP
     echo ${BTK_BCSCALE}
 }
 
