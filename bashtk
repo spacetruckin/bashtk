@@ -160,15 +160,24 @@ isStdIn()
     return 1
 }
 
+## isMac: Test for Mac OS X.
+#  Usage: isMac
+#  Returns 0 for Mac and 1 otherwise.
 isMac()
 {
+    check_help $1 $FUNCNAME || return 1
     [[ $OSTYPE =~ darwin ]]
 }
 
+## isLinux: Test for GNU linux.
+#  Usage: isLinux
+#  Returns 0 for linux and 1 otherwise.
 isLinux()
 {
+    check_help $1 $FUNCNAME || return 1
     [[ $OSTYPE =~ linux ]]
 }
+
 ## isFileIn: Test if script received a file redirection input.
 #  Usage: isFileIn
 #  Returns 0 if a file redirection input was detected, 1 if not
@@ -984,7 +993,7 @@ abs()
     fi
 }
 
-## sign: Signum function
+## sign: Signum function.
 #  Usage: sign N1 [N2] ...
 #  Returns 1 if the number is positive, -1 if its negative and 0 if it
 #  is equal to zero.
@@ -1010,7 +1019,7 @@ sign()
     return 0
 }
 
-## round: Round to nearest integer
+## round: Round to nearest integer.
 #  Usage: round N1 [N2] ...
 round()
 {
@@ -1060,7 +1069,7 @@ ceil() {
     return 0
 }
 
-## floor: Round down value
+## floor: Round down value.
 #  Usage: floor N1 [N2] ...
 #  Returns the largest integer that is not greater than N.
 floor() { 
@@ -1160,7 +1169,7 @@ fileParts()
     fi
 }
 
-## fullFile: Build full filename from parts
+## fullFile: Build full filename from parts.
 #  Usage: fullFile D1 D2 ... FILE
 #
 #  Example:
@@ -1195,7 +1204,7 @@ fileCheck()
     [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
 }
 
-## dirCheck: Check if folder exists
+## dirCheck: Check if folder exists.
 #  Usage: dirCheck dirname 
 #  If dirname does not exist, prints an error and exits
 dirCheck()
@@ -1204,7 +1213,7 @@ dirCheck()
     [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
 }
 
-## absPath: Resolve the absolute path to a file
+## absPath: Resolve the absolute path to a file.
 #  Usage: absPath filename 
 #  Prints the resolved path
 #
