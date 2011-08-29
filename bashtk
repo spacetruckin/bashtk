@@ -144,14 +144,30 @@ isStdIn()
     [[ -e /proc/self/fd/0 ]] && p='/proc/self/fd/0'
     [[ -e /dev/fd/0 ]] && p='/dev/fd/0'
     if [[ -z $p ]]; then
-	local src=$(file `readlink $p`)
-	if [[ $src =~ character\ special ]]; then
-	    return 0
+	if isLinux; then
+	    local src=$(file `readlink $p`)
+	    if [[ $src =~ character\ special ]]; then
+		return 0
+	    fi
+	elif isMac; then
+	    x=$(stat -f %HT /dev/fd/0)
+	    if [[ $x =~ 'Character' ]]; then
+		return 0
+	    fi
 	fi
     fi
     return 1
 }
 
+isMac()
+{
+    [[ $OSTYPE =~ darwin ]]
+}
+
+isLinux()
+{
+    [[ $OSTYPE =~ linux ]]
+}
 ## isFileIn: Test if script received a file redirection input.
 #  Usage: isFileIn
 #  Returns 0 if a file redirection input was detected, 1 if not
