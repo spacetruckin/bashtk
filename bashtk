@@ -92,7 +92,7 @@ input()
     local x=( "$@" )
     if [[ ${#x[@]} -eq 0 ]]; then
 	if isPipeIn || ! isStdIn; then
-	    x=(`while read l; do echo "$l"; done`)
+	    x=(`while read -r l; do echo "$l"; done`)	    
 	fi
     fi
     echo "${x[@]}"
