@@ -12,7 +12,7 @@ msg 'msg supports color and logging' green
 msg 'This is in light-blue underlined' blue bold underline
 color green
 echo 'Im green'
-color
+color reset
 echo 'Back to default color'
 echo 'Highlight terms in a string' | colorize 'terms'
 echo
@@ -24,8 +24,8 @@ msg 'length x='`length ${x[@]}`
 # commands also support also pipes
 msg 'sum x ='`sum ${x[@]}`
 msg 'mean x ='`mean ${x[@]}`
-msg 'Commands can be piped: seq 1 5|pow2|sqrt'
-seq 1 5 | pow2 |sqrt
+msg 'Commands can be piped: echo {1..5}|pow2|sqrt'
+echo {1..5} | pow2 |sqrt
 msg "Evaluate expressions: echo 'sqrt(2)*100/2' | calc"
 echo 'sqrt(2)*100/2' | calc
 msg

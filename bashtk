@@ -686,8 +686,11 @@ strRep()
     local n="${2:-0}"
     local maxlen="$3"
     local x=''
-    for i in $(seq 1 $n); do
-	x="${x}$s"
+    local i=0
+    while [[ $i -le $n ]]
+    do
+	x+="$s"
+	((i++))
     done
     if [[ -z $maxlen ]]; then
 	echo "$x"
@@ -755,9 +758,11 @@ rand()
    else
        # polling /dev/urandom is inefficient, and should not be used
        # for long sequences
-       for i in $(seq 1 $n)
+       local i=0
+       while [[ $i -le $n ]];
        do
 	   x[$i]=`echo "scale=$(getBCScale);"$(od -N3 -An -i /dev/urandom)'/16777216'|bc`
+           ((i++))
        done
    fi
    echo "${x[@]}"
@@ -767,7 +772,7 @@ rand()
 #  Usage: sum N1 N2 N3 ...
 #  Prints the sum of numbers in the list.
 #  Example:
-#  x=(`seq 1 5`)
+#  x={1..5}
 #  sum ${x[@]}
 
 sum()
@@ -1226,13 +1231,13 @@ checkDep()
     do
       require $d
       if [ ! $? -eq 0 ]; then
-	  echo "Warning: $d is missing. BaskTk may not function properly without it."
+	  echo "Warning: $d is missing. BashTk may not function properly without it."
       fi
     done
 }
 
 # Check if dependencies exist
-checkDep 'bc' 'python' 'awk' 'readlink'
+checkDep 'bc' 'python' 'awk' 'readlink' 'stat'
 if [  "$BASH_SOURCE" != "$0" ]; then
     # library was sourced
     if [ "$1" != '-q' ]; then
