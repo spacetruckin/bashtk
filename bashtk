@@ -49,23 +49,27 @@ source $BTK_PATH
 
 Type \033[0;32;40mbtkhelp\033[0m for a list of available commands.
 "
+#test_help=('check_help' '$1' '$FUNCNAME' '||' 'return 1')
+CHECK_HELP=('eval if [[ $1 == -h ]]; then btkhelp $FUNCNAME; return 1; fi')  
 
 btkhelp()
 {
+    echo -e "\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
     if [[ -z $1 ]]; then
-	echo -e "\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
 	echo "List of available commands:"
 	awk '
 /^### .*/ {gsub ("^#* *",""); print "\033[4;1;36;40m""\n"$0"\033[0m";}
 /^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
 	echo
-	echo "Type btkhelp <command> for help on a specific command."
+	echo "Type <command> -h or btkhelp <command> for help on a specific command."
     else
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
 if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];} 
 else if (/^#.*/) {gsub("^#* *","  "); print};
 }' $BTK_PATH
+	echo
+	echo "Type btkhelp for a list of available commands"|colorize 'btkhelp'
     fi
 }
 
@@ -588,12 +592,13 @@ strTrim()
 }
 
 ## strTok: Split string into parts separated by a delimiter.
-#  Usage: strTok STR DLM
+#  Usage: strTok -s STR -t DLM
+#         PIPE | strTok -t DLM
 #  Splits STR into parts based on the delimiter DLM. The delimiter
 #  defaults to ' ' if not specified
 #
 #  Example
-#  x=(`strTok 'foo:bar:abc' ':'`)
+#  x=(`strTok -s 'foo:bar:abc' -t ':'`)
 #  echo "number of parts:" ${#x[@]}
 #  echo ${x[@]}
 strTok()
@@ -681,6 +686,7 @@ getBCScale()
 #  if specified.
 rand()
 {
+   $CHECK_HELP
    local n=${1:-1}
    if require awk; then
        local x=(`awk -v N=$n 'BEGIN{srand(); for (i=0;i<N;i++){print rand();}}'`)
@@ -701,8 +707,11 @@ rand()
 #  Example:
 #  x=(`seq 1 5`)
 #  sum ${x[@]}
+
 sum()
 {
+    $CHECK_HELP
+    #check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
     return 0
@@ -711,6 +720,7 @@ sum()
 ## min: Calculate the minimum of a list of numbers.
 min()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
 	echo ${x[@]}|awk '{min=$1; for(i=1;i<=NF;i++){if ($i<min) {min=$i;}}; print min}'
@@ -723,6 +733,7 @@ min()
 ## max: Calculate the maximum of a list of numbers.
 max()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
 	echo ${x[@]}|awk '{max=$1; for(i=1;i<=NF;i++){if ($i>max) {max=$i;}}; print max}'
@@ -736,6 +747,7 @@ max()
 #  Usage: length L1 L2 L3 ...
 length()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     echo ${#x[@]}
     return 0
@@ -748,6 +760,7 @@ length()
 #  See also setBCScale
 pi()
 {
+    $CHECK_HELP
     echo "scale=$(getBCScale); 4*a(1)"| bc -l 
 }
 
@@ -755,6 +768,7 @@ pi()
 #  Usage: log2 N1 N2 N3 ...
 log2()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     for e in ${x[@]}; do
 	echo "scale=$(getBCScale); l($e)/l(2)"|bc -l
@@ -766,6 +780,7 @@ log2()
 #  Calculates 2^N for a list of numbers.
 pow2()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     for e in ${x[@]}; do
 	if (isInteger $e); then
@@ -780,6 +795,7 @@ pow2()
 #  Usage: sqrt N1 [N2] ...
 sqrt()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     for e in ${x[@]}; do
         if (float_cond "$e>=0"); then
@@ -799,16 +815,11 @@ sqrt()
 #  See also: setBCScale
 mean()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     echo "scale=$(getBCScale);" $(sum "${x[@]}")/${#x[@]}|bc
 }
-test()
-{
-    local x=(`input "$@"`)
-    echo "${x[@]}"
-    sum "${x[@]}"
-    echo "${x[@]}" |sum
-}
+
 ## calc: Evaluate a floating point number expression.
 #  Usage: calc EXPRESSION
 #  Evaluates EXPRESSION using bc. Writes the result of EXPRESSION to
@@ -824,6 +835,7 @@ test()
 # Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
 function calc()
 {
+    $CHECK_HELP
     local stat=0
     local result=0.0
     local e=(`input "$@"`)
@@ -846,6 +858,7 @@ function calc()
 # Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
 function float_cond()
 {
+    $CHECK_HELP
     local cond=0
     local e=(`input "$@"`)
     if [[ ${#e[@]} -gt 0 ]]; then
@@ -871,6 +884,7 @@ array2arg()
 #  echo ${#x[@]}
 arg2array()
 {
+    $CHECK_HELP
     local x="$@"
     if [ `length $x` -gt 0 ]; then
 	echo "$x"|tr ' ' '\n'
@@ -887,6 +901,7 @@ arg2array()
 #TODO: test if numeric
 abs()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
         echo ${x[@]}|awk '{for(i=1;i<=NF;i++){print ($i>=0) ? $i : -$i;}}'
@@ -902,6 +917,7 @@ abs()
 #  is equal to zero.
 sign()
 {
+    $CHECK_HELP
     local x=( `input "$@"` )
     for e in "${x[@]}"
     do
@@ -925,6 +941,7 @@ sign()
 #  Usage: round N1 [N2] ...
 round()
 {
+    $CHECK_HELP
     BC_ROUND="define round(x) { scale=0; if (x>0) return (x+0.5)/1
     else return (x-0.5)/1 }"
     local x=( `input "$@"` )
@@ -944,6 +961,7 @@ round()
 #  Usage: ceil N1 [N2] ...
 #  Returns the smallest integer that is not less than N1.
 ceil() { 
+    $CHECK_HELP
 # BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
     local x=( `input "$@"` )
@@ -973,6 +991,7 @@ ceil() {
 #  Usage: floor N1 [N2] ...
 #  Returns the largest integer that is not greater than N.
 floor() { 
+    $CHECK_HELP
 # BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
     local x=( `input "$@"` )
@@ -1011,6 +1030,7 @@ floor() {
 # if ! (isDir myfolder); then echo 'folder does not exist'; fi
 isDir()
 {
+    $CHECK_HELP
     [[ -d $1 ]]
 }
 
@@ -1022,6 +1042,7 @@ isDir()
 #  if (isFile myfile.txt); then echo 'file exists'; fi
 isFile()
 {
+    $CHECK_HELP
     [[ -f $1 ]]
 }
 
@@ -1033,6 +1054,7 @@ isFile()
 #  if (require ls); then echo 'ls exists'; fi
 require () 
 { 
+    $CHECK_HELP
     type -p "$1" 2>&1 >/dev/null
 }
 
@@ -1046,6 +1068,7 @@ require ()
 #  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
 fileParts() 
 {
+    $CHECK_HELP
     local f="$1"
     if ! $(isEmpty "$f"); then
 	local bn=$(basename $f)
@@ -1071,6 +1094,7 @@ fileParts()
 #  fullFile foo bar zog.txt
 fullFile()
 {
+    $CHECK_HELP
     local f="$1"
     shift 1
     for part in $@
@@ -1094,7 +1118,8 @@ fullFile()
 #  If FILENAME does not exist, prints error and exits
 fileCheck()
 {
- [ ! -f "$1" ] && printErrorAndExit "File:$1 missing"
+    $CHECK_HELP
+    [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
 }
 
 ## dirCheck: Check if folder exists
@@ -1102,7 +1127,8 @@ fileCheck()
 #  If dirname does not exist, prints an error and exits
 dirCheck()
 {
- [ ! -d "$1" ] && printErrorAndExit "Folder:$1 missing"
+    $CHECK_HELP
+    [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
 }
 
 ## absPath: Resolve the absolute path to a file
@@ -1113,9 +1139,10 @@ dirCheck()
 #  absPath ~/myfile.txt
 absPath()
 {
+    $CHECK_HELP
     local p="$1"
     local d="$(dirname -- "$p")"
-    if [ $d == '~' ]; then
+    if [[ $d == '~' ]]; then
 	d=$(readlink -f ~)
     else
 	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
