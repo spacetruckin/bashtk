@@ -140,12 +140,16 @@ isPipeIn()
 isStdIn()
 {
     check_help $1 $FUNCNAME || return 1
-    local src=$(file `readlink /proc/self/fd/0`)
-    if [[ $src =~ character\ special ]]; then
-	return 0
-    else
-	return 1
+    local p=''
+    [[ -e /proc/self/fd/0 ]] && p='/proc/self/fd/0'
+    [[ -e /dev/fd/0 ]] && p='/dev/fd/0'
+    if [[ -z $p ]]; then
+	local src=$(file `readlink $p`)
+	if [[ $src =~ character\ special ]]; then
+	    return 0
+	fi
     fi
+    return 1
 }
 
 ## isFileIn: Test if script received a file redirection input.
