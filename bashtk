@@ -35,7 +35,7 @@ BTK_LOG_DATE_FORMAT='%b %e %H:%M:%S' #date format for log
 BTK_DEBUG=0 #enable / disable debug messages
 BTK_BCSCALE=4 #precision for bc calculator
 
-usageHelp="\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
+usageHelp="\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
 A library of BASH utility routines.
 Copyright 2011 Rajiv Narayan
 
@@ -47,7 +47,7 @@ Options:
 To use the library, simply source the file using:
 source $BTK_PATH
 
-Type \033[0;32;40mbtkhelp\033[0m for a list of available commands.
+Type \033[0;32mbtkhelp\033[0m for a list of available commands.
 "
 #test_help=('check_help' '$1' '$FUNCNAME' '||' 'return 1')
 #CHECK_HELP=('eval if [[ $1 == -h ]]; then btkhelp $FUNCNAME; return 1; fi')  
@@ -61,18 +61,18 @@ check_help()
 }
 btkhelp()
 {
-    echo -e "\033[0;33;40mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
+    echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
     if [[ -z $1 ]]; then
 	echo "List of available commands:"
 	awk '
-/^### .*/ {gsub ("^#* *",""); print "\033[4;1;36;40m""\n"$0"\033[0m";}
-/^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];}
+/^### .*/ {gsub ("^#* *",""); print "\033[4;1;31m""\n"$0"\033[0m";}
+/^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[1;32m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
 	echo
 	echo "Type <command> -h or btkhelp <command> for help on a specific command."
     else
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
-if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[0;32;40m"a[1]"\033[0m"a[2];} 
+if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[0;32m"a[1]"\033[0m"a[2];} 
 else if (/^#.*/) {gsub("^#* *","  "); print};
 }' $BTK_PATH
 	echo
@@ -302,6 +302,21 @@ _getAttrValue()
     return $stat
 }
 
+## bail: Exit on error.
+#  Usage: bail MESSAGE
+#  Checks the exit status of the last command and prints MESSAGE and
+#  exits if status is non-zero.  Returns the status as the exit code.
+bail()
+{
+    if [[ $? -gt 0 ]]; then
+	{
+	    [[ -n "$@" ]] && echo "$@"
+	    quit 1
+	}
+    fi
+    return 0
+}
+
 ## color: Set terminal color and attributes.
 #  Usage: color FGCOLOR [ATTR1] ...
 #  Set terminal foreground color to FGCOLOR and sets optional
@@ -373,78 +388,6 @@ colorBG()
     fi
 }
 
-## msg: Print and log messages.
-#  Usage: msg TEXT [FGCOLOR] [ATTR]
-#  Displays TEXT using optional attributes FGCOLOR and ATTR. Also
-#  writes the message to logfile if logging is on.
-#
-#  Example:
-#  msg 'This is an alert' red bold
-#
-#  See also: color, log
-msg()
-{
-    check_help $1 $FUNCNAME || return 1
-    local m="$1"
-    shift
-    color "$@"
-    echo "$m"
-    color reset
-    log "$m"
-}
-
-## logon: Begin logging to file.
-#  Usage: logon LOGFILE
-#  Turns on logging and specifies the logfile. All subsequent calls to
-#  msg or log will be written to the logfile.
-#  See also: logoff, log
-logon()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ -n $1 ]]; then
-	BTK_LOG_FILE="$1"
-	touch "$BTK_LOG_FILE"
-	BTK_ENABLE_LOG=1
-	log '--- Begin log ---'
-    else
-	echo "logon: must specify logfile"
-    fi
-}
-
-## logoff: Stop logging to file.
-#  Usage: logoff [MSG]
-#  Write End log message to log and stops logging. 
-#  See also: logon
-logoff()
-{
-    check_help $1 $FUNCNAME || return 1
-    local m="${@:---- End log ---}"
-    log "$m"
-    logsuspend
-}
-
-## logsuspend: Temporarily stop logging to file.
-#  Usage: logsuspend
-#  See also: logresume
-logsuspend()
-{
-    check_help $1 $FUNCNAME || return 1
-    BTK_ENABLE_LOG=0
-}
-
-## logresume: Resume logging to file.
-#  Usage: logresume
-#  See also: logsuspend
-logresume()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
-	logon "$BTK_LOG_FILE"
-    elif [[ ! -f $BTK_LOG_FILE ]]; then
-	echo 'Logfile does not exist, cannot resume.'
-    fi
-}
-
 ## log: Write a message to a logfile.
 #  Usage log MSG
 #  Writes MSG to the logfile specified by logon. Note will fail
@@ -476,37 +419,6 @@ logcat()
     fi
 }
 
-## logtail: Display the last part of the logfile.
-#  Usage: logtail [N]
-#  Prints the last 10 lines of the log file. If N is specified prints
-#  the last N lines.
-
-logtail()
-{
-    check_help $1 $FUNCNAME || return 1
-    local n=${1:-10}
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
-        tail -"$n" "$BTK_LOG_FILE"
-    else
-        echo "Logging not enabled"
-    fi
-}
-
-## loghead: Display the first part of the logfile.
-#  Usage: loghead [N]
-#  Prints the first 10 lines of the log file. If N is specified prints
-#  the first N lines.
-loghead()
-{
-    check_help $1 $FUNCNAME || return 1
-    local n=${1:-10}
-    if [ $BTK_ENABLE_LOG -eq 1 ]; then
-        head -"$n" "$BTK_LOG_FILE"
-    else
-        echo "Logging not enabled"
-    fi
-}
-
 ## logname: Displays path of the current logfile.
 #  Usage: logname
 logname()
@@ -516,6 +428,36 @@ logname()
 	echo "$BTK_LOG_FILE"
     else
         echo "Logging not enabled"
+    fi
+}
+
+## logoff: Stop logging to file.
+#  Usage: logoff [MSG]
+#  Write End log message to log and stops logging. 
+#  See also: logon
+logoff()
+{
+    check_help $1 $FUNCNAME || return 1
+    local m="${@:---- End log ---}"
+    log "$m"
+    logsuspend
+}
+
+## logon: Begin logging to file.
+#  Usage: logon LOGFILE
+#  Turns on logging and specifies the logfile. All subsequent calls to
+#  msg or log will be written to the logfile.
+#  See also: logoff, log
+logon()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ -n $1 ]]; then
+	BTK_LOG_FILE="$1"
+	touch "$BTK_LOG_FILE"
+	BTK_ENABLE_LOG=1
+	log '--- Begin log ---'
+    else
+	echo "logon: must specify logfile"
     fi
 }
 
@@ -532,6 +474,64 @@ logreset()
     fi
 }
 
+## logresume: Resume logging to file.
+#  Usage: logresume
+#  See also: logsuspend
+logresume()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
+	logon "$BTK_LOG_FILE"
+    elif [[ ! -f $BTK_LOG_FILE ]]; then
+	echo 'Logfile does not exist, cannot resume.'
+    fi
+}
+
+## logsuspend: Temporarily stop logging to file.
+#  Usage: logsuspend
+#  See also: logresume
+logsuspend()
+{
+    check_help $1 $FUNCNAME || return 1
+    BTK_ENABLE_LOG=0
+}
+
+## logtail: Display the last part of the logfile.
+#  Usage: logtail [N]
+#  Prints the last 10 lines of the log file. If N is specified prints
+#  the last N lines.
+
+logtail()
+{
+    check_help $1 $FUNCNAME || return 1
+    local n=${1:-10}
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+        tail -"$n" "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## msg: Print and log messages.
+#  Usage: msg TEXT [FGCOLOR] [ATTR]
+#  Displays TEXT using optional attributes FGCOLOR and ATTR. Also
+#  writes the message to logfile if logging is on.
+#
+#  Example:
+#  msg 'This is an alert' red bold
+#
+#  See also: color, log
+msg()
+{
+    check_help $1 $FUNCNAME || return 1
+    local m="$1"
+    shift
+    color "$@"
+    echo "$m"
+    color reset
+    log "$m"
+}
+
 ## printHelpAndExit: Display message and quit.
 #  Usage: printHelpAndExit EXIT_CODE
 #  Prints the variable $usageHelp if it exists and exits with
@@ -542,7 +542,7 @@ printHelpAndExit()
     if isDefined $usageHelp; then
 	echo -e "$usageHelp"
     fi
-    exit $1
+    quit 1
 }
 
 ## printErrorHelpAndExit: Print error message, help and quit.
@@ -556,7 +556,7 @@ printErrorHelpAndExit()
     echo
     echo "Error: $@"
     echo
-    printHelpAndExit 1
+    printHelpAndExit
 }
 
 ## printErrorAndExit: Print error message and quit.
@@ -569,21 +569,27 @@ printErrorAndExit()
     echo
     echo "Error: $@"
     echo
-    exit 1
+    quit 1
+}
+
+## quit: Exit with error code.
+#  Usage: quit [EXIT CODE]
+#  Replacement for exit. When called from a script exits with status 1
+#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
+#  returns 1 or EXIT CODE.
+quit()
+{
+    if isInteractive; then
+	kill -s SIGINT $$
+	return ${1:-1}
+    else
+	exit ${1:-1}
+    fi
 }
 
 #################
 ### Logical Tests
 #################
-
-## isEmpty: Test if a string is empty.
-# example 
-# if (isEmpty "foo"); then echo 'string is not empty'; fi
-isEmpty()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ -z $1 ]]
-}
 
 ## isDefined: Test if variable exists.
 #  Example:
@@ -596,6 +602,15 @@ isDefined()
     check_help $1 $FUNCNAME || return 1
     #[[ ${!1-X} == ${!1-Y} ]]
     [[ ! -z "${1+x}" ]]
+}
+
+## isEmpty: Test if a string is empty.
+# example 
+# if (isEmpty "foo"); then echo 'string is not empty'; fi
+isEmpty()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ -z $1 ]]
 }
 
 ## isNumeric: Test if a variable is numeric.
@@ -620,6 +635,16 @@ isInteger()
     #[[ $1 -eq $1 ]] 2>/dev/null
 }
 
+
+## isInteractive: Test if current shell is interactive.
+#  Usage: isInteractive
+#  Returns 0 as an exit code if true, 1 if not.
+isInteractive()
+{
+    [[ $- =~ 'i' ]]
+# alternatively
+#    [[ -n "$PS1" ]]
+}
 ##################
 ### String Utilities
 ##################
