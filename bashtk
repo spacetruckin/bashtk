@@ -81,6 +81,42 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
 }
 
 ### IO functions
+## file2array: Read a text file into an array.
+#  Usage: file2array FILENAME
+#  Reads each line in FILENAME into an array
+#  Example
+#  x=(`file2array foo.txt`)
+#  echo "number of elements:" ${#x[@]}
+#  echo ${x[@]}
+file2array()
+{
+    check_help $1 $FUNCNAME || return 1
+    local f="$1"
+    if isFile $f; then
+	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
+	for e in "${arr[@]}";
+	do
+	    echo $e
+	done	
+    fi
+}
+
+## file2list: Read a text file into an list.
+#  Usage: file2list FILENAME
+#  Reads each line in FILENAME into a list. Blank lines and lines
+#  beginning with a '#' are ignored.
+#
+#  Example:
+#  x=(`file2list foo.txt`)
+#  echo ${x[@]}
+file2list()
+{
+    check_help $1 $FUNCNAME || return 1
+    local f="$1"
+    if isFile $f; then
+	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
+    fi
+}
 
 ## input: Read input from stdin, pipes or files.
 #  Usage: [PIPE|] input [STDIN] [<FILE]
@@ -120,6 +156,38 @@ inputType()
     fi
     echo $t
 }
+
+## isFileIn: Test if script received a file redirection input.
+#  Usage: isFileIn
+#  Returns 0 if a file redirection input was detected, 1 if not
+isFilein()
+{
+    check_help $1 $FUNCNAME || return 1
+    if ! isPipeIn && ! isStdin; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+## isLinux: Test for GNU linux.
+#  Usage: isLinux
+#  Returns 0 for linux and 1 otherwise.
+isLinux()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ $OSTYPE =~ linux ]]
+}
+
+## isMac: Test for Mac OS X.
+#  Usage: isMac
+#  Returns 0 for Mac and 1 otherwise.
+isMac()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ $OSTYPE =~ darwin ]]
+}
+
 ## isPipeIn: Test if script received a pipe input.
 #  Usage: isPipeIn
 #  Returns 0 if a pipe input was detected, 1 if not
@@ -158,74 +226,6 @@ isStdIn()
 	fi
     fi
     return 1
-}
-
-## isMac: Test for Mac OS X.
-#  Usage: isMac
-#  Returns 0 for Mac and 1 otherwise.
-isMac()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ $OSTYPE =~ darwin ]]
-}
-
-## isLinux: Test for GNU linux.
-#  Usage: isLinux
-#  Returns 0 for linux and 1 otherwise.
-isLinux()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ $OSTYPE =~ linux ]]
-}
-
-## isFileIn: Test if script received a file redirection input.
-#  Usage: isFileIn
-#  Returns 0 if a file redirection input was detected, 1 if not
-isFilein()
-{
-    check_help $1 $FUNCNAME || return 1
-    if ! isPipeIn && ! isStdin; then
-	return 0
-    else
-	return 1
-    fi
-}
-
-## file2array: Read a text file into an array.
-#  Usage: file2array FILENAME
-#  Reads each line in FILENAME into an array
-#  Example
-#  x=(`file2array foo.txt`)
-#  echo "number of elements:" ${#x[@]}
-#  echo ${x[@]}
-file2array()
-{
-    check_help $1 $FUNCNAME || return 1
-    local f="$1"
-    if isFile $f; then
-	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
-	for e in "${arr[@]}";
-	do
-	    echo $e
-	done	
-    fi
-}
-
-## file2list: Read a text file into an list.
-#  Usage: file2list FILENAME
-#  Reads each line in FILENAME into a list. Blank lines and lines
-#  beginning with a '#' are ignored.
-#
-#  Example:
-#  x=(`file2list foo.txt`)
-#  echo ${x[@]}
-file2list()
-{
-    check_help $1 $FUNCNAME || return 1
-    local f="$1"
-    if isFile $f; then
-	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
-    fi
 }
 
 # data structures
@@ -532,6 +532,31 @@ msg()
     log "$m"
 }
 
+## printErrorAndExit: Print error message and quit.
+#  Usage: printErrorAndExit ERRMSG
+#  Prints ERRMSG and exits with error code 1
+printErrorAndExit()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo
+    echo "Error: $@"
+    echo
+    quit 1
+}
+
+## printErrorHelpAndExit: Print error message, help and quit.
+#  Usage: printErrorHelpAndExit ERRMSG
+#  Prints ERRMSG and the variable usageHelp if it exists. Exits with
+#  error code 1.
+printErrorHelpAndExit()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo
+    echo "Error: $@"
+    echo
+    printHelpAndExit
+}
+
 ## printHelpAndExit: Display message and quit.
 #  Usage: printHelpAndExit EXIT_CODE
 #  Prints the variable $usageHelp if it exists and exits with
@@ -542,33 +567,6 @@ printHelpAndExit()
     if isDefined $usageHelp; then
 	echo -e "$usageHelp"
     fi
-    quit 1
-}
-
-## printErrorHelpAndExit: Print error message, help and quit.
-#  Usage: printErrorHelpAndExit ERRMSG
-#  Prints ERRMSG and the variable usageHelp if it exists. Exits with
-#  error code 1.
-
-printErrorHelpAndExit()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo
-    echo "Error: $@"
-    echo
-    printHelpAndExit
-}
-
-## printErrorAndExit: Print error message and quit.
-#  Usage: printErrorAndExit ERRMSG
-#  Prints ERRMSG and exits with error code 1
-
-printErrorAndExit()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo
-    echo "Error: $@"
-    echo
     quit 1
 }
 
@@ -613,17 +611,6 @@ isEmpty()
     [[ -z $1 ]]
 }
 
-## isNumeric: Test if a variable is numeric.
-#  Usage: isNumeric VAR
-#  Returns an exit code of 0 if VAR is numeric or 1 if not.
-#  Example:
-#  if (isNumeric 10.5); then echo 'is a number'; fi
-isNumeric()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
-}
-
 ## isInteger: Test if a variable is an integer.
 #  Usage: isInteger VAR
 #
@@ -635,7 +622,6 @@ isInteger()
     #[[ $1 -eq $1 ]] 2>/dev/null
 }
 
-
 ## isInteractive: Test if current shell is interactive.
 #  Usage: isInteractive
 #  Returns 0 as an exit code if true, 1 if not.
@@ -645,24 +631,21 @@ isInteractive()
 # alternatively
 #    [[ -n "$PS1" ]]
 }
+
+## isNumeric: Test if a variable is numeric.
+#  Usage: isNumeric VAR
+#  Returns an exit code of 0 if VAR is numeric or 1 if not.
+#  Example:
+#  if (isNumeric 10.5); then echo 'is a number'; fi
+isNumeric()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
+}
+
 ##################
 ### String Utilities
 ##################
-
-## upper: Convert string to uppercase.
-upper()
-{
-    check_help $1 $FUNCNAME || return 1 
-    echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
-}
-
-
-## lower: Convert string to lowercase.
-lower()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
-}
 
 ## capitalize: Convert first letter of string to uppercase.
 capitalize()
@@ -674,6 +657,33 @@ capitalize()
     echo "$f$r"
 }
 
+## colorize: Highlight search terms.
+#  Usage: PIPE | colorize TERM1 ...
+#  Highlights each term in the input data.
+colorize()
+{
+    check_help $1 $FUNCNAME || return 1
+    local terms=( "$@" )
+    local col='\033[1;31m'
+    local reset='\033[0m'
+    if isPipeIn; then
+	while read l; do
+	    for t in "${terms[@]}";
+	    do
+		l=`echo -e "${l//$t/${col}$t${reset}}"`
+	    done
+	    echo "$l"
+	done
+    fi
+}
+
+## lower: Convert string to lowercase.
+lower()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
+}
+
 ## strDeblank: Remove trailing spaces from the end of a string.
 strDeblank()
 {
@@ -681,11 +691,29 @@ strDeblank()
     echo "$(input $@)" | sed 's/ *$//'
 }
 
-## strTrim: Remove leading and trailing spaces from a string.
-strTrim()
+## strRep: Repeat a string.
+#  Usage: strRep STR NREP [MAXLEN]
+#  Repeats the string STR NREP times. If MAXLEN is specified truncates
+#  the output at a maximum length.
+strRep()
 {
     check_help $1 $FUNCNAME || return 1
-    echo "$(input $@)" | sed 's/^ *//; s/ *$//'
+    local s="$1"
+    local n="${2:-0}"
+    local maxlen="$3"
+    local x=''
+    local i=0
+    while [[ $i -le $n ]]
+    do
+	x+="$s"
+	((i++))
+    done
+    if [[ -z $maxlen ]]; then
+	echo "$x"
+    else
+	maxlen=$(min ${#x} $maxlen)
+	echo "${x:0:$maxlen}"
+    fi
 }
 
 ## strTok: Split string into parts separated by a delimiter.
@@ -715,216 +743,39 @@ strTok()
     done
 }
 
-## strRep: Repeat a string.
-#  Usage: strRep STR NREP [MAXLEN]
-#  Repeats the string STR NREP times. If MAXLEN is specified truncates
-#  the output at a maximum length.
-strRep()
+## strTrim: Remove leading and trailing spaces from a string.
+strTrim()
 {
     check_help $1 $FUNCNAME || return 1
-    local s="$1"
-    local n="${2:-0}"
-    local maxlen="$3"
-    local x=''
-    local i=0
-    while [[ $i -le $n ]]
-    do
-	x+="$s"
-	((i++))
-    done
-    if [[ -z $maxlen ]]; then
-	echo "$x"
-    else
-	maxlen=$(min ${#x} $maxlen)
-	echo "${x:0:$maxlen}"
-    fi
+    echo "$(input $@)" | sed 's/^ *//; s/ *$//'
 }
 
-## colorize: Highlight search terms.
-#  Usage: PIPE | colorize TERM1 ...
-#  Highlights each term in the input data.
-colorize()
+## upper: Convert string to uppercase.
+upper()
 {
-    check_help $1 $FUNCNAME || return 1
-    local terms=( "$@" )
-    local col='\033[1;31m'
-    local reset='\033[0m'
-    if isPipeIn; then
-	while read l; do
-	    for t in "${terms[@]}";
-	    do
-		l=`echo -e "${l//$t/${col}$t${reset}}"`
-	    done
-	    echo "$l"
-	done
-    fi
+    check_help $1 $FUNCNAME || return 1 
+    echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
 }
 
 ##################
 ### Math utilities
 ##################
 
-## setBCScale: Set the precision for BC output.
-#  Usage: setBCScale integer
-#  If called without and argument defaults to 4.
-#  See also getBCScale
-setBCScale()
-{
-    check_help $1 $FUNCNAME || return 1
-    BTK_BCSCALE=${1:-4}
-}
+## abs: Absolute value.
+#  Usage: abs N1 [N2] ...
+#  Computes the absolute value of a list of numbers.
 
-## getBCScale: Get the current scale setting for BC.
-#  Usage: getBCScale
-#  Default is 4
-#  See also setBCScale 
-getBCScale()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo ${BTK_BCSCALE}
-}
-
-
-## rand: Generate random numbers.
-#  Usage: rand [N]
-#  Generates one random number in the range [0,1]. Generates N value
-#  if specified.
-rand()
-{
-   check_help $1 $FUNCNAME || return 1
-   local n=${1:-1}
-   if require awk; then
-       local x=(`awk -v N=$n 'BEGIN{srand(); for (i=0;i<N;i++){print rand();}}'`)
-   else
-       # polling /dev/urandom is inefficient, and should not be used
-       # for long sequences
-       local i=0
-       while [[ $i -le $n ]];
-       do
-	   x[$i]=`echo "scale=$(getBCScale);"$(od -N3 -An -i /dev/urandom)'/16777216'|bc`
-           ((i++))
-       done
-   fi
-   echo "${x[@]}"
-}
-
-## sum: Calculate the sum of elements in a list.
-#  Usage: sum N1 N2 N3 ...
-#  Prints the sum of numbers in the list.
-#  Example:
-#  x={1..5}
-#  sum ${x[@]}
-
-sum()
-{
-    check_help $1 $FUNCNAME || return 1
-    #check_help $1 $FUNCNAME
-    local x=( `input "$@"` )
-    echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
-    return 0
-}
-
-## min: Calculate the minimum of a list of numbers.
-min()
+#TODO: test if numeric
+abs()
 {
     check_help $1 $FUNCNAME || return 1
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
-	echo ${x[@]}|awk '{min=$1; for(i=1;i<=NF;i++){if ($i<min) {min=$i;}}; print min}'
-	return 0
+        echo ${x[@]}|awk '{for(i=1;i<=NF;i++){print ($i>=0) ? $i : -$i;}}'
+        return 0
     else
-	return 1
+        return 1
     fi
-}
-
-## max: Calculate the maximum of a list of numbers.
-max()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    if [[ ${#x[@]} -gt 0 ]]; then
-	echo ${x[@]}|awk '{max=$1; for(i=1;i<=NF;i++){if ($i>max) {max=$i;}}; print max}'
-	return 0
-    else
-	return 1
-    fi
-}
-
-## length: Length of a list.
-#  Usage: length L1 L2 L3 ...
-length()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    echo ${#x[@]}
-    return 0
-}
-
-## pi: Value of PI.
-#  Usage: pi
-#  Prints the value of PI. The precision is determined by setBCScale.
-#
-#  See also setBCScale
-pi()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo "scale=$(getBCScale); 4*a(1)"| bc -l 
-}
-
-## log2: Base 2 logarithm.
-#  Usage: log2 N1 N2 N3 ...
-log2()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    for e in ${x[@]}; do
-	echo "scale=$(getBCScale); l($e)/l(2)"|bc -l
-    done
-}
-
-## pow2: Base 2 power of numbers.
-#  Usage: pow2 N1 N2 N3 ...
-#  Calculates 2^N for a list of numbers.
-pow2()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    for e in ${x[@]}; do
-	if (isInteger $e); then
-	    echo "scale=$(getBCScale); 2^$e"|bc
-	else
-	    echo "scale=$(getBCScale); e($e*l(2))"|bc -l
-	fi
-    done
-}
-
-## sqrt: Square root of non-negative numbers.
-#  Usage: sqrt N1 [N2] ...
-sqrt()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    for e in ${x[@]}; do
-        if (float_cond "$e>=0"); then
-            echo "scale=$(getBCScale); sqrt($e)"|bc
-        else
-	    echo "$e is negative"
-	    return 1
-        fi
-    done
-    return 0
-}
-
-## mean: Compute the average of a list of numbers.
-#  Usage: mean N1 N2 N3 ...
-#  Returns the mean of the list. The precision of the result is
-#  determined by setBCScale.
-#  See also: setBCScale
-mean()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    echo "scale=$(getBCScale);" $(sum "${x[@]}")/${#x[@]}|bc
 }
 
 ## calc: Evaluate a floating point number expression.
@@ -953,115 +804,6 @@ function calc()
     fi
     echo $result
     return $stat
-}
-
-## float_cond: Evaluate a floating point number conditional expression.
-#  Usage: float_cond CONDITIOAL_EXPRESSION
-#  Evaluates CONDITIONAL_EXPRESSION and sets the return/status code to
-#  zero if the expression is true and one if it's false.
-#  Example: if (float_cond '12.0 > 3.0'); then echo true; fi
-#  See also: float_eval
-
-# Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
-function float_cond()
-{
-    check_help $1 $FUNCNAME || return 1
-    local cond=0
-    local e=(`input "$@"`)
-    if [[ ${#e[@]} -gt 0 ]]; then
-        cond=$(echo "${e[@]}" | bc -q 2>/dev/null)
-        if [[ -z "$cond" ]]; then cond=0; fi
-        if [[ "$cond" != 0  &&  "$cond" != 1 ]]; then cond=0; fi
-    fi
-    local stat=$((cond == 0))
-    return $stat
-}
-
-array2arg()
-{
-    local x=( `input $@` )
-    if (isDefined x); then
-	echo ${x[@]}
-    fi
-}
-
-# arg2array
-#  Example:
-#  x=(`arg2array 1 2 3 4`)
-#  echo ${#x[@]}
-arg2array()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x="$@"
-    if [ `length $x` -gt 0 ]; then
-	echo "$x"|tr ' ' '\n'
-	return 0
-    else
-	return 1
-    fi
-}
-
-## abs: Absolute value.
-#  Usage: abs N1 [N2] ...
-#  Computes the absolute value of a list of numbers.
-
-#TODO: test if numeric
-abs()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    if [[ ${#x[@]} -gt 0 ]]; then
-        echo ${x[@]}|awk '{for(i=1;i<=NF;i++){print ($i>=0) ? $i : -$i;}}'
-        return 0
-    else
-        return 1
-    fi
-}
-
-## sign: Signum function.
-#  Usage: sign N1 [N2] ...
-#  Returns 1 if the number is positive, -1 if its negative and 0 if it
-#  is equal to zero.
-sign()
-{
-    check_help $1 $FUNCNAME || return 1
-    local x=( `input "$@"` )
-    for e in "${x[@]}"
-    do
-      if (isNumeric $e); then
-	  if ( float_cond "$e > 0" ); then
-	      echo 1
-	  elif ( float_cond "$e < 0" ); then
-	      echo -1
-	  else
-	      echo 0
-	  fi
-      else
-	  echo "Error $e is not numeric"
-	  return 1
-      fi
-    done
-    return 0
-}
-
-## round: Round to nearest integer.
-#  Usage: round N1 [N2] ...
-round()
-{
-    check_help $1 $FUNCNAME || return 1
-    BC_ROUND="define round(x) { scale=0; if (x>0) return (x+0.5)/1
-    else return (x-0.5)/1 }"
-    local x=( `input "$@"` )
-    for e in "${x[@]}"
-    do
-      if (isNumeric $e); then
-	 echo $BC_ROUND"round($e)"|bc
-      else
-	  echo "Error $e is not numeric"
-	  return 1
-      fi
-    done
-    return 0
 }
 
 ## ceil: Round up to positive infinity.
@@ -1094,6 +836,28 @@ ceil() {
     return 0
 }
 
+## float_cond: Evaluate a floating point number conditional expression.
+#  Usage: float_cond CONDITIOAL_EXPRESSION
+#  Evaluates CONDITIONAL_EXPRESSION and sets the return/status code to
+#  zero if the expression is true and one if it's false.
+#  Example: if (float_cond '12.0 > 3.0'); then echo true; fi
+#  See also: float_eval
+
+# Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
+function float_cond()
+{
+    check_help $1 $FUNCNAME || return 1
+    local cond=0
+    local e=(`input "$@"`)
+    if [[ ${#e[@]} -gt 0 ]]; then
+        cond=$(echo "${e[@]}" | bc -q 2>/dev/null)
+        if [[ -z "$cond" ]]; then cond=0; fi
+        if [[ "$cond" != 0  &&  "$cond" != 1 ]]; then cond=0; fi
+    fi
+    local stat=$((cond == 0))
+    return $stat
+}
+
 ## floor: Round down value.
 #  Usage: floor N1 [N2] ...
 #  Returns the largest integer that is not greater than N.
@@ -1121,48 +885,293 @@ floor() {
     return 0
 }
 
-# std
-# var
+## getBCScale: Get the current scale setting for BC.
+#  Usage: getBCScale
+#  Default is 4
+#  See also setBCScale 
+getBCScale()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo ${BTK_BCSCALE}
+}
+
+## length: Length of a list.
+#  Usage: length L1 L2 L3 ...
+length()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    echo ${#x[@]}
+    return 0
+}
+
+## log2: Base 2 logarithm.
+#  Usage: log2 N1 N2 N3 ...
+log2()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    for e in ${x[@]}; do
+	echo "scale=$(getBCScale); l($e)/l(2)"|bc -l
+    done
+}
+
+## max: Calculate the maximum of a list of numbers.
+max()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]]; then
+	echo ${x[@]}|awk '{max=$1; for(i=1;i<=NF;i++){if ($i>max) {max=$i;}}; print max}'
+	return 0
+    else
+	return 1
+    fi
+}
+
+## mean: Compute the average of a list of numbers.
+#  Usage: mean N1 N2 N3 ...
+#  Returns the mean of the list. The precision of the result is
+#  determined by setBCScale.
+#  See also: setBCScale
+mean()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    echo "scale=$(getBCScale);" $(sum "${x[@]}")/${#x[@]}|bc
+}
+
+## min: Calculate the minimum of a list of numbers.
+min()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]]; then
+	echo ${x[@]}|awk '{min=$1; for(i=1;i<=NF;i++){if ($i<min) {min=$i;}}; print min}'
+	return 0
+    else
+	return 1
+    fi
+}
+
+## pi: Value of PI.
+#  Usage: pi
+#  Prints the value of PI. The precision is determined by setBCScale.
+#
+#  See also setBCScale
+pi()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo "scale=$(getBCScale); 4*a(1)"| bc -l 
+}
+
+## pow2: Base 2 power of numbers.
+#  Usage: pow2 N1 N2 N3 ...
+#  Calculates 2^N for a list of numbers.
+pow2()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    for e in ${x[@]}; do
+	if (isInteger $e); then
+	    echo "scale=$(getBCScale); 2^$e"|bc
+	else
+	    echo "scale=$(getBCScale); e($e*l(2))"|bc -l
+	fi
+    done
+}
+
+## rand: Generate random numbers.
+#  Usage: rand [N]
+#  Generates one random number in the range [0,1]. Generates N value
+#  if specified.
+rand()
+{
+   check_help $1 $FUNCNAME || return 1
+   local n=${1:-1}
+   if require awk; then
+       local x=(`awk -v N=$n 'BEGIN{srand(); for (i=0;i<N;i++){print rand();}}'`)
+   else
+       # polling /dev/urandom is inefficient, and should not be used
+       # for long sequences
+       local i=0
+       while [[ $i -le $n ]];
+       do
+	   x[$i]=`echo "scale=$(getBCScale);"$(od -N3 -An -i /dev/urandom)'/16777216'|bc`
+           ((i++))
+       done
+   fi
+   echo "${x[@]}"
+}
+
+## round: Round to nearest integer.
+#  Usage: round N1 [N2] ...
+round()
+{
+    check_help $1 $FUNCNAME || return 1
+    BC_ROUND="define round(x) { scale=0; if (x>0) return (x+0.5)/1
+    else return (x-0.5)/1 }"
+    local x=( `input "$@"` )
+    for e in "${x[@]}"
+    do
+      if (isNumeric $e); then
+	 echo $BC_ROUND"round($e)"|bc
+      else
+	  echo "Error $e is not numeric"
+	  return 1
+      fi
+    done
+    return 0
+}
+
+## setBCScale: Set the precision for BC output.
+#  Usage: setBCScale integer
+#  If called without and argument defaults to 4.
+#  See also getBCScale
+setBCScale()
+{
+    check_help $1 $FUNCNAME || return 1
+    BTK_BCSCALE=${1:-4}
+}
+
+## sign: Signum function.
+#  Usage: sign N1 [N2] ...
+#  Returns 1 if the number is positive, -1 if its negative and 0 if it
+#  is equal to zero.
+sign()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    for e in "${x[@]}"
+    do
+      if (isNumeric $e); then
+	  if ( float_cond "$e > 0" ); then
+	      echo 1
+	  elif ( float_cond "$e < 0" ); then
+	      echo -1
+	  else
+	      echo 0
+	  fi
+      else
+	  echo "Error $e is not numeric"
+	  return 1
+      fi
+    done
+    return 0
+}
+
+## sqrt: Square root of non-negative numbers.
+#  Usage: sqrt N1 [N2] ...
+sqrt()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    for e in ${x[@]}; do
+        if (float_cond "$e>=0"); then
+            echo "scale=$(getBCScale); sqrt($e)"|bc
+        else
+	    echo "$e is negative"
+	    return 1
+        fi
+    done
+    return 0
+}
+
+## std: Standard deviation.
+#  Usage: std X1 X2 ...
+std()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 1 ]]; then
+	local mu=$(mean "${x[@]}")
+	local sigma
+	sigma=$(echo "${x[@]}" | awk -v mean=$mu '
+{for (i=1;i<=NF;i++) {sum2+=($i - mean)*($i - mean);}} 
+END{print sqrt(sum2/(NF - 1))}')
+	echo $sigma
+    else
+	echo 0
+    fi
+}
+
+## sum: Calculate the sum of elements in a list.
+#  Usage: sum N1 N2 N3 ...
+#  Prints the sum of numbers in the list.
+#  Example:
+#  x={1..5}
+#  sum ${x[@]}
+
+sum()
+{
+    check_help $1 $FUNCNAME || return 1
+    #check_help $1 $FUNCNAME
+    local x=( `input "$@"` )
+    echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
+    return 0
+}
+
+## var: Variance
+#  Usage X1 X2 ...
+var()
+{
+    check_help $1 $FUNCNAME || return 1
+    local x=( `input "$@"` )
+    local mu=$(mean "${x[@]}")
+    local v
+    v=$(echo "${x[@]}" | awk -v mean=$mu ' 
+{for (i=1;i<=NF;i++) {sum2+=+($i - mean)*($i - mean);}} 
+END{print sum2/(NF - 1)}')
+    echo $v
+}
+
 # prctile
 
 ##################
 ### File utilities
 ##################
 
-## isDir: Test if directory exists.
-#  Usage: isDir DIRNAME
-#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
-#
-# Example
-# if ! (isDir myfolder); then echo 'folder does not exist'; fi
-isDir()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ -d $1 ]]
-}
-
-## isFile: Test if file exists.
-#  Usage: isFile FILENAME
-#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
-#
-#  Example 
-#  if (isFile myfile.txt); then echo 'file exists'; fi
-isFile()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ -f $1 ]]
-}
-
-## require: Test if a command is available.
-#  Usage: require CMD
-#  Returns an exit code of 0 if CMD exists or >0 otherwise
+## absPath: Resolve the absolute path to a file.
+#  Usage: absPath filename 
+#  Prints the resolved path
 #
 #  Example:
-#  if (require ls); then echo 'ls exists'; fi
-require () 
-{ 
+#  absPath ~/myfile.txt
+absPath()
+{
     check_help $1 $FUNCNAME || return 1
-    type -p "$1" 2>&1 >/dev/null
+    local p="$1"
+    local d="$(dirname -- "$p")"
+    if [[ $d == '~' ]]; then
+	d=$(readlink -f ~)
+    else
+	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
+    fi
+    fullFile "$d" "$(basename $p)"
+
+#    if ( require realpath); then
+#	realpath -s "$p"
+#    elif ( require python); then
+#	python -c "import os,sys; print os.path.realpath(sys.argv[1])" "$prg"
+#    fi
+}
+
+## dirCheck: Check if folder exists.
+#  Usage: dirCheck dirname 
+#  If dirname does not exist, prints an error and exits
+dirCheck()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
+}
+
+# fileCheck: Check if file exists
+#  Usage: fileCheck FILENAME
+#  If FILENAME does not exist, prints error and exits
+fileCheck()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
 }
 
 ## fileParts: Split a file into path, file and extension.
@@ -1220,49 +1229,43 @@ fullFile()
     return 0 #success
 }
 
-# fileCheck: Check if file exists
-#  Usage: fileCheck FILENAME
-#  If FILENAME does not exist, prints error and exits
-fileCheck()
+## isDir: Test if directory exists.
+#  Usage: isDir DIRNAME
+#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
+#
+# Example
+# if ! (isDir myfolder); then echo 'folder does not exist'; fi
+isDir()
 {
     check_help $1 $FUNCNAME || return 1
-    [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
+    [[ -d $1 ]]
 }
 
-## dirCheck: Check if folder exists.
-#  Usage: dirCheck dirname 
-#  If dirname does not exist, prints an error and exits
-dirCheck()
+## isFile: Test if file exists.
+#  Usage: isFile FILENAME
+#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
+#
+#  Example 
+#  if (isFile myfile.txt); then echo 'file exists'; fi
+isFile()
 {
     check_help $1 $FUNCNAME || return 1
-    [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
+    [[ -f $1 ]]
 }
 
-## absPath: Resolve the absolute path to a file.
-#  Usage: absPath filename 
-#  Prints the resolved path
+## require: Test if a command is available.
+#  Usage: require CMD
+#  Returns an exit code of 0 if CMD exists or >0 otherwise
 #
 #  Example:
-#  absPath ~/myfile.txt
-absPath()
-{
+#  if (require ls); then echo 'ls exists'; fi
+require () 
+{ 
     check_help $1 $FUNCNAME || return 1
-    local p="$1"
-    local d="$(dirname -- "$p")"
-    if [[ $d == '~' ]]; then
-	d=$(readlink -f ~)
-    else
-	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
-    fi
-    fullFile "$d" "$(basename $p)"
-
-#    if ( require realpath); then
-#	realpath -s "$p"
-#    elif ( require python); then
-#	python -c "import os,sys; print os.path.realpath(sys.argv[1])" "$prg"
-#    fi
+    type -p "$1" 2>&1 >/dev/null
 }
 
+#################################
 # Main
 checkDep()
 {
@@ -1271,7 +1274,8 @@ checkDep()
     do
       require $d
       if [ ! $? -eq 0 ]; then
-	  echo "Warning: $d is missing. BashTk may not function properly without it."
+	  echo "Warning: $d is missing. BashTk may not function
+	  properly without it."
       fi
     done
 }
