@@ -80,7 +80,185 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
     fi
 }
 
+#########################
+### Date / Time functions
+#########################
+
+## tic: Start timer.
+#  Usage: tic
+#  Initializes the timer. Use toc to get the time elapsed.
+#  See also: toc 
+tic () 
+{
+    check_help $1 $FUNCNAME || return 1
+    BTK_TIC=$(date +%s)
+}
+
+## toc: Print time elapsed in seconds.
+#  Usage: toc
+#  Prints the seconds elapsed since tic was called. Note must first
+#  call tic before calling toc
+#
+#  Example:
+#  tic
+#  echo "do something"
+#  elapsed=$(toc)
+#  echo "${elapsed}s elapsed."
+toc()
+{
+    check_help $1 $FUNCNAME || return 1
+    local _TOC=$(date +%s)
+    if [[ -n $BTK_TIC ]]; then
+	local SECS_ELAPSED=$(($_TOC - $BTK_TIC))
+	echo "${SECS_ELAPSED}"
+	return 0
+    else
+	echo "Run tic() before calling toc()"
+	return 1
+    fi
+}
+
+##################
+### File utilities
+##################
+
+## absPath: Resolve the absolute path to a file.
+#  Usage: absPath filename 
+#  Prints the resolved path
+#
+#  Example:
+#  absPath ~/myfile.txt
+absPath()
+{
+    check_help $1 $FUNCNAME || return 1
+    local p="$1"
+    local d="$(dirname -- "$p")"
+    if [[ $d == '~' ]]; then
+	d=$(readlink -f ~)
+    else
+	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
+    fi
+    fullFile "$d" "$(basename $p)"
+
+#    if ( require realpath); then
+#	realpath -s "$p"
+#    elif ( require python); then
+#	python -c "import os,sys; print os.path.realpath(sys.argv[1])" "$prg"
+#    fi
+}
+
+## dirCheck: Check if folder exists.
+#  Usage: dirCheck dirname 
+#  If dirname does not exist, prints an error and exits
+dirCheck()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
+}
+
+# fileCheck: Check if file exists
+#  Usage: fileCheck FILENAME
+#  If FILENAME does not exist, prints error and exits
+fileCheck()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
+}
+
+## fileParts: Split a file into path, file and extension.
+#  Usage: fileParts FILENAME
+#  Prints the path, file and extension of FILENAME. Can be read into
+#  an array.
+#
+#  Example
+#  parts=(`fileParts ~/file.txt`)
+#  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
+fileParts() 
+{
+    check_help $1 $FUNCNAME || return 1
+    local f="$1"
+    if ! $(isEmpty "$f"); then
+	local bn=$(basename $f)
+	local dn=$(dirname $f)
+	echo $dn
+	echo ${bn%%\.*}
+	local ext=${bn#*\.}
+	if [ "$ext" != "$bn" ]; then
+	    echo ".$ext"
+	else
+	    echo ""
+	fi
+	return 0 #success
+    else
+	return 1 #fail
+    fi
+}
+
+## fullFile: Build full filename from parts.
+#  Usage: fullFile D1 D2 ... FILE
+#
+#  Example:
+#  fullFile foo bar zog.txt
+fullFile()
+{
+    check_help $1 $FUNCNAME || return 1
+    local f="$1"
+    shift 1
+    for part in $@
+    do
+	if [ -z "$f" -a -z "$part" ]; then
+	    f="$f$part"
+	elif [ "${f:(-1):1}" == '/' -a "${part:1:1}" == '/' ]; then 
+	    f="$f${part:1}"
+	elif [ "${f:(-1):1}" == '/' -o "${part:1:1}" == '/' ]; then
+	    f="$f$part"
+	else
+	    f="$f/$part"
+	fi
+    done
+    echo $f
+    return 0 #success
+}
+
+## isDir: Test if directory exists.
+#  Usage: isDir DIRNAME
+#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
+#
+# Example
+# if ! (isDir myfolder); then echo 'folder does not exist'; fi
+isDir()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ -d $1 ]]
+}
+
+## isFile: Test if file exists.
+#  Usage: isFile FILENAME
+#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
+#
+#  Example 
+#  if (isFile myfile.txt); then echo 'file exists'; fi
+isFile()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ -f $1 ]]
+}
+
+## require: Test if a command is available.
+#  Usage: require CMD
+#  Returns an exit code of 0 if CMD exists or >0 otherwise
+#
+#  Example:
+#  if (require ls); then echo 'ls exists'; fi
+require () 
+{ 
+    check_help $1 $FUNCNAME || return 1
+    type -p "$1" 2>&1 >/dev/null
+}
+
+################
 ### IO functions
+################
 ## file2array: Read a text file into an array.
 #  Usage: file2array FILENAME
 #  Reads each line in FILENAME into an array
@@ -232,359 +410,6 @@ isStdIn()
 # TODO: hash table : 
 # http://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
 
-#########################
-### Date / Time functions
-#########################
-
-## tic: Start timer.
-#  Usage: tic
-#  Initializes the timer. Use toc to get the time elapsed.
-#  See also: toc 
-tic () 
-{
-    check_help $1 $FUNCNAME || return 1
-    BTK_TIC=$(date +%s)
-}
-
-## toc: Print time elapsed in seconds.
-#  Usage: toc
-#  Prints the seconds elapsed since tic was called. Note must first
-#  call tic before calling toc
-#
-#  Example:
-#  tic
-#  echo "do something"
-#  elapsed=$(toc)
-#  echo "${elapsed}s elapsed."
-toc()
-{
-    check_help $1 $FUNCNAME || return 1
-    local _TOC=$(date +%s)
-    if [[ -n $BTK_TIC ]]; then
-	local SECS_ELAPSED=$(($_TOC - $BTK_TIC))
-	echo "${SECS_ELAPSED}"
-	return 0
-    else
-	echo "Run tic() before calling toc()"
-	return 1
-    fi
-}
-
-######################
-### Messages and Logging
-######################
-
-# _getAttrValue: Get terminal attribute values. 
-# private function
-_getAttrValue()
-{
-    check_help $1 $FUNCNAME || return 1
-    local val=''
-    local stat=0
-    case "$1" in
-	BLACK) val=0;;
-	RED) val=1;;
-	GREEN) val=2;;
-	YELLOW) val=3;;
-	BLUE) val=4 ;;
-	MAGENTA) val=5;;
-	CYAN) val=6;;
-	WHITE) val=7;;
-	DEFAULT) val='sgr0';;
-	RESET) val='sgr0';;
-	BOLD) val='bold';;
-	UNDERLINE) val='smul';;
-	BLINK) val='blink';;
-	REVERSE) val='rev';;
-	*) stat=1;;
-    esac
-    echo $val
-    return $stat
-}
-
-## bail: Exit on error.
-#  Usage: bail MESSAGE
-#  Checks the exit status of the last command and prints MESSAGE and
-#  exits if status is non-zero.  Returns the status as the exit code.
-bail()
-{
-    if [[ $? -gt 0 ]]; then
-	{
-	    [[ -n "$@" ]] && echo "$@"
-	    quit 1
-	}
-    fi
-    return 0
-}
-
-## color: Set terminal color and attributes.
-#  Usage: color FGCOLOR [ATTR1] ...
-#  Set terminal foreground color to FGCOLOR and sets optional
-#  attributes ATTR. Colors can be one of [red, green, yellow, blue,
-#  magenta, cyan, white, black]. ATTR can be [bold, underline,
-#  reverse]. Calling color without arguments or setting COLOR to
-#  'reset' sets the color to the default.
-#
-#  Example:
-#  color red
-#  color red underline reverse
-#
-#  See also: colorBG
-color()
-{
-    check_help $1 $FUNCNAME || return 1
-    local fgcol=$(upper "$1")
-    fgcol=${fgcol:-RESET}
-    bgcol=${bgcol:-RESET}
-    shift $(min 1 $#)
-    local fgval=$(_getAttrValue $fgcol)
-
-    if [[ $# -gt 0 ]]; then
-	local effect=(`upper "$@"`)
-	for e in "${effect[@]}"; do
-	    local effectval=$(_getAttrValue $e)
-	    if [[ -n $effectval ]]; then
-		tput $effectval
-	    fi
-	done
-    fi
-
-    if [[ $fgcol == 'DEFAULT' || $fgcol == 'RESET' ]]; then
-	tput $fgval
-    else
-	if [[ -n $fgval ]]; then 
-	    tput setaf $fgval
-	fi
-    fi
-
-}
-
-## colorBG: Set terminal foreground, background color and attributes.
-#  Usage: colorBG FGCOLOR [BGCOLOR] [ATTR1] ...
-#  Set terminal foreground color to FGCOLOR, background color to
-#  BGCOLOR and sets optional attributes ATTR. Colors can be one of
-#  [red, green, yellow, blue, magenta, cyan, white, black]. ATTR can
-#  be [bold, underline, reverse]. Calling color without arguments or
-#  setting COLOR to 'reset' sets the color to the default.
-#
-#  Example:
-#  color red 
-#  color red white bold underline
-#
-#  See also: color
-colorBG()
-{
-    check_help $1 $FUNCNAME || return 1
-    local fgcol=$(upper "$1")
-    local bgcol=$(upper "$2")
-    fgcol=${fgcol:-RESET}
-    bgcol=${bgcol:-RESET}
-    shift $(min 2 $#)
-    local effect=(`upper "$@"`)
-    color $fgcol "${effect[@]}"
-    local bgval=$(_getAttrValue $bgcol)
-    if [[ -n $bgval ]]; then
-	tput setab $bgval
-    fi
-}
-
-## log: Write a message to a logfile.
-#  Usage log MSG
-#  Writes MSG to the logfile specified by logon. Note will fail
-#  silently if logging has not been enabled.
-#  See also: logon, logoff, msg
-log()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
-	local m="$@"
-	local ts=`date +"$BTK_LOG_DATE_FORMAT"`
-	if [[ -n $m ]]; then
-	    echo "$ts $m" >> "$BTK_LOG_FILE"
-	else
-	    echo "$ts -- Empty message --" >> "$BTK_LOG_FILE"
-	fi
-    fi
-}
-
-## logcat: Display contents of the log file.
-#  Usage: logcat
-logcat()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
-	cat "$BTK_LOG_FILE"
-    else
-	echo "Logging not enabled"
-    fi
-}
-
-## logname: Displays path of the current logfile.
-#  Usage: logname
-logname()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
-	echo "$BTK_LOG_FILE"
-    else
-        echo "Logging not enabled"
-    fi
-}
-
-## logoff: Stop logging to file.
-#  Usage: logoff [MSG]
-#  Write End log message to log and stops logging. 
-#  See also: logon
-logoff()
-{
-    check_help $1 $FUNCNAME || return 1
-    local m="${@:---- End log ---}"
-    log "$m"
-    logsuspend
-}
-
-## logon: Begin logging to file.
-#  Usage: logon LOGFILE
-#  Turns on logging and specifies the logfile. All subsequent calls to
-#  msg or log will be written to the logfile.
-#  See also: logoff, log
-logon()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ -n $1 ]]; then
-	BTK_LOG_FILE="$1"
-	touch "$BTK_LOG_FILE"
-	BTK_ENABLE_LOG=1
-	log '--- Begin log ---'
-    else
-	echo "logon: must specify logfile"
-    fi
-}
-
-## logreset: Resets the content of the current logfile.
-#  Usage: logreset
-logreset()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
-	rm -f "$BTK_LOG_FILE"
-	logon "$BTK_LOG_FILE"
-    else
-        echo "Logging not enabled"
-    fi
-}
-
-## logresume: Resume logging to file.
-#  Usage: logresume
-#  See also: logsuspend
-logresume()
-{
-    check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
-	logon "$BTK_LOG_FILE"
-    elif [[ ! -f $BTK_LOG_FILE ]]; then
-	echo 'Logfile does not exist, cannot resume.'
-    fi
-}
-
-## logsuspend: Temporarily stop logging to file.
-#  Usage: logsuspend
-#  See also: logresume
-logsuspend()
-{
-    check_help $1 $FUNCNAME || return 1
-    BTK_ENABLE_LOG=0
-}
-
-## logtail: Display the last part of the logfile.
-#  Usage: logtail [N]
-#  Prints the last 10 lines of the log file. If N is specified prints
-#  the last N lines.
-
-logtail()
-{
-    check_help $1 $FUNCNAME || return 1
-    local n=${1:-10}
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
-        tail -"$n" "$BTK_LOG_FILE"
-    else
-        echo "Logging not enabled"
-    fi
-}
-
-## msg: Print and log messages.
-#  Usage: msg TEXT [FGCOLOR] [ATTR]
-#  Displays TEXT using optional attributes FGCOLOR and ATTR. Also
-#  writes the message to logfile if logging is on.
-#
-#  Example:
-#  msg 'This is an alert' red bold
-#
-#  See also: color, log
-msg()
-{
-    check_help $1 $FUNCNAME || return 1
-    local m="$1"
-    shift
-    color "$@"
-    echo "$m"
-    color reset
-    log "$m"
-}
-
-## printErrorAndExit: Print error message and quit.
-#  Usage: printErrorAndExit ERRMSG
-#  Prints ERRMSG and exits with error code 1
-printErrorAndExit()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo
-    echo "Error: $@"
-    echo
-    quit 1
-}
-
-## printErrorHelpAndExit: Print error message, help and quit.
-#  Usage: printErrorHelpAndExit ERRMSG
-#  Prints ERRMSG and the variable usageHelp if it exists. Exits with
-#  error code 1.
-printErrorHelpAndExit()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo
-    echo "Error: $@"
-    echo
-    printHelpAndExit
-}
-
-## printHelpAndExit: Display message and quit.
-#  Usage: printHelpAndExit EXIT_CODE
-#  Prints the variable $usageHelp if it exists and exits with
-#  EXIT_CODE
-printHelpAndExit()
-{
-    check_help $1 $FUNCNAME || return 1
-    if isDefined $usageHelp; then
-	echo -e "$usageHelp"
-    fi
-    quit 1
-}
-
-## quit: Exit with error code.
-#  Usage: quit [EXIT CODE]
-#  Replacement for exit. When called from a script exits with status 1
-#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
-#  returns 1 or EXIT CODE.
-quit()
-{
-    if isInteractive; then
-	kill -s SIGINT $$
-	return ${1:-1}
-    else
-	exit ${1:-1}
-    fi
-}
-
 #################
 ### Logical Tests
 #################
@@ -641,120 +466,6 @@ isNumeric()
 {
     check_help $1 $FUNCNAME || return 1
     [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
-}
-
-##################
-### String Utilities
-##################
-
-## capitalize: Convert first letter of string to uppercase.
-capitalize()
-{
-    check_help $1 $FUNCNAME || return 1
-    local s="$(input "$@")"
-    local f=`upper "${s:0:1}"`
-    local r=`lower "${s:1}"`
-    echo "$f$r"
-}
-
-## colorize: Highlight search terms.
-#  Usage: PIPE | colorize TERM1 ...
-#  Highlights each term in the input data.
-colorize()
-{
-    check_help $1 $FUNCNAME || return 1
-    local terms=( "$@" )
-    local col='\033[1;31m'
-    local reset='\033[0m'
-    if isPipeIn; then
-	while read l; do
-	    for t in "${terms[@]}";
-	    do
-		l=`echo -e "${l//$t/${col}$t${reset}}"`
-	    done
-	    echo "$l"
-	done
-    fi
-}
-
-## lower: Convert string to lowercase.
-lower()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
-}
-
-## strDeblank: Remove trailing spaces from the end of a string.
-strDeblank()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo "$(input $@)" | sed 's/ *$//'
-}
-
-## strRep: Repeat a string.
-#  Usage: strRep STR NREP [MAXLEN]
-#  Repeats the string STR NREP times. If MAXLEN is specified truncates
-#  the output at a maximum length.
-strRep()
-{
-    check_help $1 $FUNCNAME || return 1
-    local s="$1"
-    local n="${2:-0}"
-    local maxlen="$3"
-    local x=''
-    local i=0
-    while [[ $i -le $n ]]
-    do
-	x+="$s"
-	((i++))
-    done
-    if [[ -z $maxlen ]]; then
-	echo "$x"
-    else
-	maxlen=$(min ${#x} $maxlen)
-	echo "${x:0:$maxlen}"
-    fi
-}
-
-## strTok: Split string into parts separated by a delimiter.
-#  Usage: strTok -s STR -t DLM
-#         PIPE | strTok -t DLM
-#  Splits STR into parts based on the delimiter DLM. The delimiter
-#  defaults to ' ' if not specified
-#
-#  Example
-#  x=(`strTok -s 'foo:bar:abc' -t ':'`)
-#  echo "number of parts:" ${#x[@]}
-#  echo ${x[@]}
-strTok()
-{
-    check_help $1 $FUNCNAME || return 1
-    local tok=' '
-    local s=(`input`)
-    while getopts 't:s:' opt; do
-	case "$opt" in
-	    t) tok="$OPTARG";;
-	    s) s="$OPTARG";;
-	esac
-    done
-    local arr=$(echo "$s"| tr "$tok" '\n')
-    for e in ${arr[@]}; do
-	echo $e
-    done
-}
-
-## strTrim: Remove leading and trailing spaces from a string.
-strTrim()
-{
-    check_help $1 $FUNCNAME || return 1
-    echo "$(input $@)" | sed 's/^ *//; s/ *$//'
-}
-
-## upper: Convert string to uppercase.
-upper()
-{
-    check_help $1 $FUNCNAME || return 1 
-    echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
 }
 
 ##################
@@ -1127,146 +838,438 @@ END{print sum2/(NF - 1)}')
 
 # prctile
 
-##################
-### File utilities
-##################
+######################
+### Messages and Logging
+######################
 
-## absPath: Resolve the absolute path to a file.
-#  Usage: absPath filename 
-#  Prints the resolved path
+# _getAttrValue: Get terminal attribute values. 
+# private function
+_getAttrValue()
+{
+    check_help $1 $FUNCNAME || return 1
+    local val=''
+    local stat=0
+    case "$1" in
+	BLACK) val=0;;
+	RED) val=1;;
+	GREEN) val=2;;
+	YELLOW) val=3;;
+	BLUE) val=4 ;;
+	MAGENTA) val=5;;
+	CYAN) val=6;;
+	WHITE) val=7;;
+	DEFAULT) val='sgr0';;
+	RESET) val='sgr0';;
+	BOLD) val='bold';;
+	UNDERLINE) val='smul';;
+	BLINK) val='blink';;
+	REVERSE) val='rev';;
+	*) stat=1;;
+    esac
+    echo $val
+    return $stat
+}
+
+## bail: Exit on error.
+#  Usage: bail MESSAGE
+#  Checks the exit status of the last command and prints MESSAGE and
+#  exits if status is non-zero.  Returns the status as the exit code.
+bail()
+{
+    if [[ $? -gt 0 ]]; then
+	{
+	    [[ -n "$@" ]] && echo "$@"
+	    quit 1
+	}
+    fi
+    return 0
+}
+
+## color: Set terminal color and attributes.
+#  Usage: color FGCOLOR [ATTR1] ...
+#  Set terminal foreground color to FGCOLOR and sets optional
+#  attributes ATTR. Colors can be one of [red, green, yellow, blue,
+#  magenta, cyan, white, black]. ATTR can be [bold, underline,
+#  reverse]. Calling color without arguments or setting COLOR to
+#  'reset' sets the color to the default.
 #
 #  Example:
-#  absPath ~/myfile.txt
-absPath()
+#  color red
+#  color red underline reverse
+#
+#  See also: colorBG
+color()
 {
     check_help $1 $FUNCNAME || return 1
-    local p="$1"
-    local d="$(dirname -- "$p")"
-    if [[ $d == '~' ]]; then
-	d=$(readlink -f ~)
-    else
-	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
+    local fgcol=$(upper "$1")
+    fgcol=${fgcol:-RESET}
+    bgcol=${bgcol:-RESET}
+    shift $(min 1 $#)
+    local fgval=$(_getAttrValue $fgcol)
+
+    if [[ $# -gt 0 ]]; then
+	local effect=(`upper "$@"`)
+	for e in "${effect[@]}"; do
+	    local effectval=$(_getAttrValue $e)
+	    if [[ -n $effectval ]]; then
+		tput $effectval
+	    fi
+	done
     fi
-    fullFile "$d" "$(basename $p)"
 
-#    if ( require realpath); then
-#	realpath -s "$p"
-#    elif ( require python); then
-#	python -c "import os,sys; print os.path.realpath(sys.argv[1])" "$prg"
-#    fi
+    if [[ $fgcol == 'DEFAULT' || $fgcol == 'RESET' ]]; then
+	tput $fgval
+    else
+	if [[ -n $fgval ]]; then 
+	    tput setaf $fgval
+	fi
+    fi
+
 }
 
-## dirCheck: Check if folder exists.
-#  Usage: dirCheck dirname 
-#  If dirname does not exist, prints an error and exits
-dirCheck()
+## colorBG: Set terminal foreground, background color and attributes.
+#  Usage: colorBG FGCOLOR [BGCOLOR] [ATTR1] ...
+#  Set terminal foreground color to FGCOLOR, background color to
+#  BGCOLOR and sets optional attributes ATTR. Colors can be one of
+#  [red, green, yellow, blue, magenta, cyan, white, black]. ATTR can
+#  be [bold, underline, reverse]. Calling color without arguments or
+#  setting COLOR to 'reset' sets the color to the default.
+#
+#  Example:
+#  color red 
+#  color red white bold underline
+#
+#  See also: color
+colorBG()
 {
     check_help $1 $FUNCNAME || return 1
-    [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
+    local fgcol=$(upper "$1")
+    local bgcol=$(upper "$2")
+    fgcol=${fgcol:-RESET}
+    bgcol=${bgcol:-RESET}
+    shift $(min 2 $#)
+    local effect=(`upper "$@"`)
+    color $fgcol "${effect[@]}"
+    local bgval=$(_getAttrValue $bgcol)
+    if [[ -n $bgval ]]; then
+	tput setab $bgval
+    fi
 }
 
-# fileCheck: Check if file exists
-#  Usage: fileCheck FILENAME
-#  If FILENAME does not exist, prints error and exits
-fileCheck()
+## log: Write a message to a logfile.
+#  Usage log MSG
+#  Writes MSG to the logfile specified by logon. Note will fail
+#  silently if logging has not been enabled.
+#  See also: logon, logoff, msg
+log()
 {
     check_help $1 $FUNCNAME || return 1
-    [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+	local m="$@"
+	local ts=`date +"$BTK_LOG_DATE_FORMAT"`
+	if [[ -n $m ]]; then
+	    echo "$ts $m" >> "$BTK_LOG_FILE"
+	else
+	    echo "$ts -- Empty message --" >> "$BTK_LOG_FILE"
+	fi
+    fi
 }
 
-## fileParts: Split a file into path, file and extension.
-#  Usage: fileParts FILENAME
-#  Prints the path, file and extension of FILENAME. Can be read into
-#  an array.
+## logcat: Display contents of the log file.
+#  Usage: logcat
+logcat()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+	cat "$BTK_LOG_FILE"
+    else
+	echo "Logging not enabled"
+    fi
+}
+
+## logname: Displays path of the current logfile.
+#  Usage: logname
+logname()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+	echo "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## logoff: Stop logging to file.
+#  Usage: logoff [MSG]
+#  Write End log message to log and stops logging. 
+#  See also: logon
+logoff()
+{
+    check_help $1 $FUNCNAME || return 1
+    local m="${@:---- End log ---}"
+    log "$m"
+    logsuspend
+}
+
+## logon: Begin logging to file.
+#  Usage: logon LOGFILE
+#  Turns on logging and specifies the logfile. All subsequent calls to
+#  msg or log will be written to the logfile.
+#  See also: logoff, log
+logon()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ -n $1 ]]; then
+	BTK_LOG_FILE="$1"
+	touch "$BTK_LOG_FILE"
+	BTK_ENABLE_LOG=1
+	log '--- Begin log ---'
+    else
+	echo "logon: must specify logfile"
+    fi
+}
+
+## logreset: Resets the content of the current logfile.
+#  Usage: logreset
+logreset()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+	rm -f "$BTK_LOG_FILE"
+	logon "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## logresume: Resume logging to file.
+#  Usage: logresume
+#  See also: logsuspend
+logresume()
+{
+    check_help $1 $FUNCNAME || return 1
+    if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
+	logon "$BTK_LOG_FILE"
+    elif [[ ! -f $BTK_LOG_FILE ]]; then
+	echo 'Logfile does not exist, cannot resume.'
+    fi
+}
+
+## logsuspend: Temporarily stop logging to file.
+#  Usage: logsuspend
+#  See also: logresume
+logsuspend()
+{
+    check_help $1 $FUNCNAME || return 1
+    BTK_ENABLE_LOG=0
+}
+
+## logtail: Display the last part of the logfile.
+#  Usage: logtail [N]
+#  Prints the last 10 lines of the log file. If N is specified prints
+#  the last N lines.
+
+logtail()
+{
+    check_help $1 $FUNCNAME || return 1
+    local n=${1:-10}
+    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+        tail -"$n" "$BTK_LOG_FILE"
+    else
+        echo "Logging not enabled"
+    fi
+}
+
+## msg: Print and log messages.
+#  Usage: msg TEXT [FGCOLOR] [ATTR]
+#  Displays TEXT using optional attributes FGCOLOR and ATTR. Also
+#  writes the message to logfile if logging is on.
+#
+#  Example:
+#  msg 'This is an alert' red bold
+#
+#  See also: color, log
+msg()
+{
+    check_help $1 $FUNCNAME || return 1
+    local m="$1"
+    shift
+    color "$@"
+    echo "$m"
+    color reset
+    log "$m"
+}
+
+## printErrorAndExit: Print error message and quit.
+#  Usage: printErrorAndExit ERRMSG
+#  Prints ERRMSG and exits with error code 1
+printErrorAndExit()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo
+    echo "Error: $@"
+    echo
+    quit 1
+}
+
+## printErrorHelpAndExit: Print error message, help and quit.
+#  Usage: printErrorHelpAndExit ERRMSG
+#  Prints ERRMSG and the variable usageHelp if it exists. Exits with
+#  error code 1.
+printErrorHelpAndExit()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo
+    echo "Error: $@"
+    echo
+    printHelpAndExit
+}
+
+## printHelpAndExit: Display message and quit.
+#  Usage: printHelpAndExit EXIT_CODE
+#  Prints the variable $usageHelp if it exists and exits with
+#  EXIT_CODE
+printHelpAndExit()
+{
+    check_help $1 $FUNCNAME || return 1
+    if isDefined $usageHelp; then
+	echo -e "$usageHelp"
+    fi
+    quit 1
+}
+
+## quit: Exit with error code.
+#  Usage: quit [EXIT CODE]
+#  Replacement for exit. When called from a script exits with status 1
+#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
+#  returns 1 or EXIT CODE.
+quit()
+{
+    if isInteractive; then
+	kill -s SIGINT $$
+	return ${1:-1}
+    else
+	exit ${1:-1}
+    fi
+}
+
+####################
+### String Utilities
+####################
+
+## capitalize: Convert first letter of string to uppercase.
+capitalize()
+{
+    check_help $1 $FUNCNAME || return 1
+    local s="$(input "$@")"
+    local f=`upper "${s:0:1}"`
+    local r=`lower "${s:1}"`
+    echo "$f$r"
+}
+
+## colorize: Highlight search terms.
+#  Usage: PIPE | colorize TERM1 ...
+#  Highlights each term in the input data.
+colorize()
+{
+    check_help $1 $FUNCNAME || return 1
+    local terms=( "$@" )
+    local col='\033[1;31m'
+    local reset='\033[0m'
+    if isPipeIn; then
+	while read l; do
+	    for t in "${terms[@]}";
+	    do
+		l=`echo -e "${l//$t/${col}$t${reset}}"`
+	    done
+	    echo "$l"
+	done
+    fi
+}
+
+## lower: Convert string to lowercase.
+lower()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
+}
+
+## strDeblank: Remove trailing spaces from the end of a string.
+strDeblank()
+{
+    check_help $1 $FUNCNAME || return 1
+    echo "$(input $@)" | sed 's/ *$//'
+}
+
+## strRep: Repeat a string.
+#  Usage: strRep STR NREP [MAXLEN]
+#  Repeats the string STR NREP times. If MAXLEN is specified truncates
+#  the output at a maximum length.
+strRep()
+{
+    check_help $1 $FUNCNAME || return 1
+    local s="$1"
+    local n="${2:-0}"
+    local maxlen="$3"
+    local x=''
+    local i=0
+    while [[ $i -le $n ]]
+    do
+	x+="$s"
+	((i++))
+    done
+    if [[ -z $maxlen ]]; then
+	echo "$x"
+    else
+	maxlen=$(min ${#x} $maxlen)
+	echo "${x:0:$maxlen}"
+    fi
+}
+
+## strTok: Split string into parts separated by a delimiter.
+#  Usage: strTok -s STR -t DLM
+#         PIPE | strTok -t DLM
+#  Splits STR into parts based on the delimiter DLM. The delimiter
+#  defaults to ' ' if not specified
 #
 #  Example
-#  parts=(`fileParts ~/file.txt`)
-#  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
-fileParts() 
+#  x=(`strTok -s 'foo:bar:abc' -t ':'`)
+#  echo "number of parts:" ${#x[@]}
+#  echo ${x[@]}
+strTok()
 {
     check_help $1 $FUNCNAME || return 1
-    local f="$1"
-    if ! $(isEmpty "$f"); then
-	local bn=$(basename $f)
-	local dn=$(dirname $f)
-	echo $dn
-	echo ${bn%%\.*}
-	local ext=${bn#*\.}
-	if [ "$ext" != "$bn" ]; then
-	    echo ".$ext"
-	else
-	    echo ""
-	fi
-	return 0 #success
-    else
-	return 1 #fail
-    fi
-}
-
-## fullFile: Build full filename from parts.
-#  Usage: fullFile D1 D2 ... FILE
-#
-#  Example:
-#  fullFile foo bar zog.txt
-fullFile()
-{
-    check_help $1 $FUNCNAME || return 1
-    local f="$1"
-    shift 1
-    for part in $@
-    do
-	if [ -z "$f" -a -z "$part" ]; then
-	    f="$f$part"
-	elif [ "${f:(-1):1}" == '/' -a "${part:1:1}" == '/' ]; then 
-	    f="$f${part:1}"
-	elif [ "${f:(-1):1}" == '/' -o "${part:1:1}" == '/' ]; then
-	    f="$f$part"
-	else
-	    f="$f/$part"
-	fi
+    local tok=' '
+    local s=(`input`)
+    while getopts 't:s:' opt; do
+	case "$opt" in
+	    t) tok="$OPTARG";;
+	    s) s="$OPTARG";;
+	esac
     done
-    echo $f
-    return 0 #success
+    local arr=$(echo "$s"| tr "$tok" '\n')
+    for e in ${arr[@]}; do
+	echo $e
+    done
 }
 
-## isDir: Test if directory exists.
-#  Usage: isDir DIRNAME
-#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
-#
-# Example
-# if ! (isDir myfolder); then echo 'folder does not exist'; fi
-isDir()
+## strTrim: Remove leading and trailing spaces from a string.
+strTrim()
 {
     check_help $1 $FUNCNAME || return 1
-    [[ -d $1 ]]
+    echo "$(input $@)" | sed 's/^ *//; s/ *$//'
 }
 
-## isFile: Test if file exists.
-#  Usage: isFile FILENAME
-#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
-#
-#  Example 
-#  if (isFile myfile.txt); then echo 'file exists'; fi
-isFile()
+## upper: Convert string to uppercase.
+upper()
 {
-    check_help $1 $FUNCNAME || return 1
-    [[ -f $1 ]]
+    check_help $1 $FUNCNAME || return 1 
+    echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
 }
 
-## require: Test if a command is available.
-#  Usage: require CMD
-#  Returns an exit code of 0 if CMD exists or >0 otherwise
-#
-#  Example:
-#  if (require ls); then echo 'ls exists'; fi
-require () 
-{ 
-    check_help $1 $FUNCNAME || return 1
-    type -p "$1" 2>&1 >/dev/null
-}
-
-#################################
+######
 # Main
+######
 checkDep()
 {
     local deps=( "$@" )
