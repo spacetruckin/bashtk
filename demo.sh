@@ -30,7 +30,7 @@ stat_busy 'Test 0 > 1'
 echo
 
 msg 'Math functions' cyan underline
-x={1..10}
+x=(`echo {1..10}`)
 echo "x=${x[@]}"
 msg 'length x='`length ${x[@]}`
 msg 'sum x ='`sum ${x[@]}`
