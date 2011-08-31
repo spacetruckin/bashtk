@@ -17,14 +17,23 @@ echo 'Back to default color'
 echo 'Highlight terms in a string' | colorize 'terms'
 echo
 
+msg 'Init style status messages' red underline
+stat_busy Running
+sleep 2
+stat_pass
+
+status 'Status of ls -l' ls -l 
+stat_busy 'Test 0 > 1'
+[[ 0 -gt 1 ]] && stat_pass|| stat_fail
+echo
+
 msg 'Math functions' red underline
 x=(`rand 5`)
 echo "x=${x[@]}"
 msg 'length x='`length ${x[@]}`
-# commands also support also pipes
 msg 'sum x ='`sum ${x[@]}`
 msg 'mean x ='`mean ${x[@]}`
-msg 'Commands can be piped: echo {1..5}|pow2|sqrt'
+msg 'Commands accept pipes: echo {1..5}|pow2|sqrt'
 echo {1..5} | pow2 |sqrt
 msg "Evaluate expressions: echo 'sqrt(2)*100/2' | calc"
 echo 'sqrt(2)*100/2' | calc
@@ -34,12 +43,12 @@ msg 'String utilities' red underline
 echo 'upperCase'|upper
 echo 'LOwercase'|lower
 echo 'capiTalize'|capitalize
-echo '  >strtrim<  '|strTrim
-strRep '-' 20
+echo '  >strtrim<  '|str_trim
+str_rep '-' 20
 
 echo -e "\nPlayback log:"
 logcat
 logoff
 #time elapsed
-strRep '-' 20
+str_rep '-' 20
 echo "Time elapsed $(toc)(s)."

@@ -122,13 +122,13 @@ toc()
 ### File utilities
 ##################
 
-## absPath: Resolve the absolute path to a file.
-#  Usage: absPath filename 
+## abs_path: Resolve the absolute path to a file.
+#  Usage: abs_path filename 
 #  Prints the resolved path
 #
 #  Example:
-#  absPath ~/myfile.txt
-absPath()
+#  abs_path ~/myfile.txt
+abs_path()
 {
     check_help $1 $FUNCNAME || return 1
     local p="$1"
@@ -138,7 +138,7 @@ absPath()
     else
 	d=$(cd -P -- "$d" 2&>/dev/null && pwd -P)
     fi
-    fullFile "$d" "$(basename $p)"
+    full_file "$d" "$(basename $p)"
 
 #    if ( require realpath); then
 #	realpath -s "$p"
@@ -147,10 +147,10 @@ absPath()
 #    fi
 }
 
-## dirCheck: Check if folder exists.
-#  Usage: dirCheck dirname 
+## dir_check: Check if folder exists.
+#  Usage: dir_check dirname 
 #  If dirname does not exist, prints an error and exits
-dirCheck()
+dir_check()
 {
     check_help $1 $FUNCNAME || return 1
     [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
@@ -165,19 +165,19 @@ fileCheck()
     [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
 }
 
-## fileParts: Split a file into path, file and extension.
-#  Usage: fileParts FILENAME
+## file_parts: Split a file into path, file and extension.
+#  Usage: file_parts FILENAME
 #  Prints the path, file and extension of FILENAME. Can be read into
 #  an array.
 #
 #  Example
-#  parts=(`fileParts ~/file.txt`)
+#  parts=(`file_parts ~/file.txt`)
 #  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
-fileParts() 
+file_parts() 
 {
     check_help $1 $FUNCNAME || return 1
     local f="$1"
-    if ! $(isEmpty "$f"); then
+    if ! $(is_empty "$f"); then
 	local bn=$(basename $f)
 	local dn=$(dirname $f)
 	echo $dn
@@ -194,12 +194,12 @@ fileParts()
     fi
 }
 
-## fullFile: Build full filename from parts.
-#  Usage: fullFile D1 D2 ... FILE
+## full_file: Build full filename from parts.
+#  Usage: full_file D1 D2 ... FILE
 #
 #  Example:
-#  fullFile foo bar zog.txt
-fullFile()
+#  full_file foo bar zog.txt
+full_file()
 {
     check_help $1 $FUNCNAME || return 1
     local f="$1"
@@ -220,25 +220,25 @@ fullFile()
     return 0 #success
 }
 
-## isDir: Test if directory exists.
-#  Usage: isDir DIRNAME
+## is_dir: Test if directory exists.
+#  Usage: is_dir DIRNAME
 #  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
 #
 # Example
-# if ! (isDir myfolder); then echo 'folder does not exist'; fi
-isDir()
+# if ! (is_dir myfolder); then echo 'folder does not exist'; fi
+is_dir()
 {
     check_help $1 $FUNCNAME || return 1
     [[ -d $1 ]]
 }
 
-## isFile: Test if file exists.
-#  Usage: isFile FILENAME
+## is_file: Test if file exists.
+#  Usage: is_file FILENAME
 #  Returns an exit code of 0 if FILENAME exists or 1 otherwise
 #
 #  Example 
-#  if (isFile myfile.txt); then echo 'file exists'; fi
-isFile()
+#  if (is_file myfile.txt); then echo 'file exists'; fi
+is_file()
 {
     check_help $1 $FUNCNAME || return 1
     [[ -f $1 ]]
@@ -270,7 +270,7 @@ file2array()
 {
     check_help $1 $FUNCNAME || return 1
     local f="$1"
-    if isFile $f; then
+    if is_file $f; then
 	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
 	for e in "${arr[@]}";
 	do
@@ -291,7 +291,7 @@ file2list()
 {
     check_help $1 $FUNCNAME || return 1
     local f="$1"
-    if isFile $f; then
+    if is_file $f; then
 	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
     fi
 }
@@ -313,7 +313,7 @@ input()
     IFS=$(echo -en "\n\b")
     local x=( "$@" )
     if [[ ${#x[@]} -eq 0 ]]; then
-	if isPipeIn || ! isStdIn; then
+	if is_pipein || ! is_stdin; then
 	    x=(`while read -r l; do echo "$l"; done`)	    
 	fi
     fi
@@ -327,57 +327,57 @@ inputType()
     local x=( "$@" )
     if [[ ${#x[@]} -gt 0 ]]; then
 	t='stdin'
-    elif isPipeIn; then
+    elif is_pipein; then
 	t='pipe'
-    elif ! isStdIn; then
+    elif ! is_stdin; then
 	t='file'
     fi
     echo $t
 }
 
-## isFileIn: Test if script received a file redirection input.
-#  Usage: isFileIn
+## is_filein: Test if script received a file redirection input.
+#  Usage: is_filein
 #  Returns 0 if a file redirection input was detected, 1 if not
-isFilein()
+is_filein()
 {
     check_help $1 $FUNCNAME || return 1
-    if ! isPipeIn && ! isStdin; then
+    if ! is_pipein && ! isStdin; then
 	return 0
     else
 	return 1
     fi
 }
 
-## isLinux: Test for GNU linux.
-#  Usage: isLinux
+## is_linux: Test for GNU linux.
+#  Usage: is_linux
 #  Returns 0 for linux and 1 otherwise.
-isLinux()
+is_linux()
 {
     check_help $1 $FUNCNAME || return 1
     [[ $OSTYPE =~ linux ]]
 }
 
-## isMac: Test for Mac OS X.
-#  Usage: isMac
+## is_mac: Test for Mac OS X.
+#  Usage: is_mac
 #  Returns 0 for Mac and 1 otherwise.
-isMac()
+is_mac()
 {
     check_help $1 $FUNCNAME || return 1
     [[ $OSTYPE =~ darwin ]]
 }
 
-## isPipeIn: Test if script received a pipe input.
-#  Usage: isPipeIn
+## is_pipein: Test if script received a pipe input.
+#  Usage: is_pipein
 #  Returns 0 if a pipe input was detected, 1 if not
-isPipeIn()
+is_pipein()
 {
     check_help $1 $FUNCNAME || return 1
-    if isLinux; then
+    if is_linux; then
 	local src=$(readlink /proc/self/fd/0)
 	if [[ $src =~ ^pipe: ]]; then
 	    return 0
 	fi
-    elif isMac; then
+    elif is_mac; then
 	x=$(stat -f %HT /dev/fd/0)
 	if [[ $x =~ 'Fifo' ]]; then
 	    return 0
@@ -386,18 +386,18 @@ isPipeIn()
     return 1
 }
 
-## isStdIn: Test if script received standard input.
-#  Usage: isStdIn
+## is_stdin: Test if script received standard input.
+#  Usage: is_stdin
 #  Returns 0 if a standard input was detected, 1 if not
-isStdIn()
+is_stdin()
 {
     check_help $1 $FUNCNAME || return 1
-    if isLinux; then
+    if is_linux; then
 	local src=$(file `readlink /proc/self/fd/0`)
 	if [[ $src =~ character\ special ]]; then
 	    return 0
 	fi
-    elif isMac; then
+    elif is_mac; then
 	x=$(stat -f %HT /dev/fd/0)
 	if [[ $x =~ 'Character' ]]; then
 	    return 0
@@ -409,60 +409,261 @@ isStdIn()
 # data structures
 # TODO: hash table : 
 # http://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
+### Init style status messages
+
+# Status message prefixes:
+PREFIX_REG="::"
+PREFIX_HL=" >"
+
+# _usecolor: Setup colors.
+_use_color()
+{
+    if tput setaf 0 &>/dev/null; then
+# foreground colors
+	C_BLACK=$(tput setaf 0)
+	C_RED=$(tput setaf 1)
+	C_GREEN=$(tput setaf 2)
+	C_YELLOW=$(tput setaf 3)
+	C_BLUE=$(tput setaf 4)
+	C_MAGENTA=$(tput setaf 5)
+	C_CYAN=$(tput setaf 6)
+	C_WHITE=$(tput setaf 7)
+# background colors
+	C_BLACK_BG=$(tput setab 0)
+	C_RED_BG=$(tput setab 1)
+	C_GREEN_BG=$(tput setab 2)
+	C_YELLOW_BG=$(tput setab 3)
+	C_BLUE_BG=$(tput setab 4)
+	C_MAGENTA_BG=$(tput setab 5)
+	C_CYAN_BG=$(tput setab 6)
+	C_WHITE_BG=$(tput setab 7)
+# attributes
+	C_BOLD=$(tput bold)
+	C_UNDERLINE=$(tput smul)
+	C_REVERSE=$(tput rev)
+# clear text
+	C_CLEAR=$(tput sgr0)
+    else
+# foreground colors
+	C_BLACK="\033[30m"
+	C_RED="\033[31m"
+	C_GREEN="\033[32m"
+	C_YELLOW="\033[33m"
+	C_BLUE="\033[34m"
+	C_MAGENTA="\033[35m"
+	C_CYAN="\033[36m"
+	C_WHITE="\033[37m"
+# background colors
+	C_BLACK_BG="\033[40m"
+	C_RED_BG="\033[41m"
+	C_GREEN_BG="\033[42m"
+	C_YELLOW_BG="\033[43m"
+	C_BLUE_BG="\033[44m"
+	C_MAGENTA_BG="\033[45m"
+	C_CYAN_BG="\033[46m"
+	C_WHITE_BG="\033[47m"
+# attributes
+	C_BOLD="\033[1m"
+	C_NORMAL="\033[0m"
+	C_UNDERLINE="\033[4m"
+	C_REVERSE="\033[7m"
+# clear text
+	C_CLEAR="\033[m"
+    fi
+# main text
+    C_MAIN=${C_CLEAR}
+# prefix & brackets
+    C_OTHER=${C_MAIN}${C_BOLD}${C_BLUE}
+# separator
+    C_SEPARATOR=${C_MAIN}${C_BOLD}${C_CYAN}
+# busy
+    C_BUSY=${C_CLEAR}${BOLD}${C_YELLOW}
+# failed
+    C_FAIL=${C_MAIN}${C_BOLD}${C_RED}
+# completed
+    C_DONE=${C_MAIN}${C_GREEN}
+# backgrounded
+    C_BKGD=${C_MAIN}${C_BOLD}${C_MAGENTA}
+# highlight text 1
+    C_H1=${C_MAIN}${C_RED}
+# highlight text 2
+    C_H2=${C_MAIN}${C_BOLD}${C_CYAN}
+}
+
+# _calc_columns: Calculate column width for messages.
+_calc_columns () 
+{
+    STAT_COL=80
+    if [[ ! -t 1 ]]; then
+	USECOLOR=""
+    elif [[ -t 0 ]]; then
+		# stty will fail when stdin isn't a terminal
+	STAT_COL=$(stty size)
+		# stty gives "rows cols"; strip the rows number, we just want columns
+	STAT_COL=${STAT_COL##* }
+    elif tput cols &>/dev/null; then
+		# is /usr/share/terminfo already mounted, and TERM recognized?
+	STAT_COL=$(tput cols)
+    fi
+    if (( STAT_COL == 0 )); then
+		# if output was 0 (serial console), set default width to 80
+	STAT_COL=80
+	USECOLOR=""
+    fi
+	# we use 13 characters for our own stuff
+    STAT_COL=$(( STAT_COL - 13 ))
+
+    if [[ -t 1 ]]; then
+	SAVE_POSITION="\e[s"
+	RESTORE_POSITION="\e[u"
+	DEL_TEXT="\e[$(( STAT_COL + 4 ))G"
+    else
+	SAVE_POSITION=""
+	RESTORE_POSITION=""
+	DEL_TEXT=""
+    fi
+}
+
+# deltext: position cursor for status messages.
+deltext() 
+{
+	printf "${DEL_TEXT}"
+}
+
+## print_hl: Print highlighted message
+#  Usage: print_hl
+print_hl() 
+{
+	printf "${C_OTHER}${PREFIX_HL} ${C_H1}${1}${C_CLEAR} \n"
+}
+
+## print_sep: Prints a line separator.
+#  Usage: print_sep
+print_sep() 
+{
+	printf "\n${C_SEPARATOR}   ------------------------------\n"
+}
+
+## stat_append: Appends text to message line.
+#  Usage: stat_append
+stat_append() 
+{
+	printf "${RESTORE_POSITION}"
+	printf -- "${C_MAIN}${1}${C_CLEAR}"
+	printf "${SAVE_POSITION}"
+}
+
+## stat_bkgd: Prints background status.
+#  Usage: stat_bkgd
+stat_bkgd() 
+{
+	printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+	deltext
+	printf "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
+}
+
+## stat_busy: Prints busy status.
+#  Usage: stat_busy
+stat_busy() 
+{
+	printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+	printf "${SAVE_POSITION}"
+	deltext
+	printf "   ${C_OTHER}[${C_BUSY}BUSY${C_OTHER}]${C_CLEAR} "
+}
+
+## stat_die: Exit after printing error message.
+#  Usage: stat_die [EXIT_CODE]
+#  Prints fail status and exits with 1 or specified code.
+stat_die() 
+{
+	stat_fail
+	exit ${1:-1}
+}
+
+## stat_fail: Prints fail status.
+#  Usage: stat_fail
+stat_fail() 
+{
+	deltext
+	printf "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} \n"
+}
+
+## stat_pass: Prints pass status.
+#  Usage: stat_pass
+stat_pass() 
+{
+	deltext
+	printf "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} \n"
+}
+
+## status: Execute command and print exit status.
+#  Usage: status MSG CMD ARGS
+#  Prints MSG and executes the command CMD with arguments ARGS and
+#  reports exit status.
+status()
+{
+	stat_busy "$1"
+	shift
+	"$@" &>/dev/null
+	local ret=$?
+	(( ret == 0 )) && stat_pass || stat_fail
+	return $ret
+}
 
 #################
 ### Logical Tests
 #################
 
-## isDefined: Test if variable exists.
+## is_defined: Test if variable exists.
 #  Example:
 #  y='foo'
 #  unset x
-#  isDefined $y && echo 'y is defined'
-#  ! isDefined $x && echo 'x is not defined'
-isDefined()
+#  is_defined $y && echo 'y is defined'
+#  ! is_defined $x && echo 'x is not defined'
+is_defined()
 {
     check_help $1 $FUNCNAME || return 1
     #[[ ${!1-X} == ${!1-Y} ]]
     [[ ! -z "${1+x}" ]]
 }
 
-## isEmpty: Test if a string is empty.
+## is_empty: Test if a string is empty.
 # example 
-# if (isEmpty "foo"); then echo 'string is not empty'; fi
-isEmpty()
+# if (is_empty "foo"); then echo 'string is not empty'; fi
+is_empty()
 {
     check_help $1 $FUNCNAME || return 1
     [[ -z $1 ]]
 }
 
-## isInteger: Test if a variable is an integer.
-#  Usage: isInteger VAR
+## is_integer: Test if a variable is an integer.
+#  Usage: is_integer VAR
 #
-#  if isInteger -10; then echo 'is an integer'; fi 
-isInteger()
+#  if is_integer -10; then echo 'is an integer'; fi 
+is_integer()
 {
     check_help $1 $FUNCNAME || return 1
     [ "$1" -eq "$1" 2>/dev/null ]
     #[[ $1 -eq $1 ]] 2>/dev/null
 }
 
-## isInteractive: Test if current shell is interactive.
-#  Usage: isInteractive
+## is_interactive: Test if current shell is interactive.
+#  Usage: is_interactive
 #  Returns 0 as an exit code if true, 1 if not.
-isInteractive()
+is_interactive()
 {
     [[ $- =~ 'i' ]]
 # alternatively
 #    [[ -n "$PS1" ]]
 }
 
-## isNumeric: Test if a variable is numeric.
-#  Usage: isNumeric VAR
+## is_numeric: Test if a variable is numeric.
+#  Usage: is_numeric VAR
 #  Returns an exit code of 0 if VAR is numeric or 1 if not.
 #  Example:
-#  if (isNumeric 10.5); then echo 'is a number'; fi
-isNumeric()
+#  if (is_numeric 10.5); then echo 'is a number'; fi
+is_numeric()
 {
     check_help $1 $FUNCNAME || return 1
     [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
@@ -509,7 +710,7 @@ function calc()
     local result=0.0
     local e=(`input "$@"`)
     if [[ "${#e[@]}" -gt 0 ]]; then
-        result=$(echo "scale=$(getBCScale); ${e[@]}" | bc -q -l 2>/dev/null)
+        result=$(echo "scale=$(get_precision); ${e[@]}" | bc -q -l 2>/dev/null)
         stat=$?
         if [[ $stat -eq 0  &&  -z "$result" ]]; then stat=1; fi
     fi
@@ -537,8 +738,8 @@ ceil() {
 #    ceil(float(sys.argv[1]))" $e
 
     for e in "${x[@]}"; do
-	if (isNumeric $e); then
-	    echo -e "scale=$(getBCScale)\n"$BC_CEIL$BC_FLOOR"ceil($e)"|bc
+	if (is_numeric $e); then
+	    echo -e "scale=$(get_precision)\n"$BC_CEIL$BC_FLOOR"ceil($e)"|bc
 	else
 	    echo "Error $e is not numeric"
 	    return 1
@@ -586,8 +787,8 @@ floor() {
     -1*ceil(-1*x); scale = savescale; return result }" 
 
     for e in "${x[@]}"; do
-	if (isNumeric $e); then
-	    echo -e "scale=$(getBCScale)\n"$BC_CEIL$BC_FLOOR"floor($e)"|bc
+	if (is_numeric $e); then
+	    echo -e "scale=$(get_precision)\n"$BC_CEIL$BC_FLOOR"floor($e)"|bc
 	else
 	    echo "Error $e is not numeric"
 	    return 1
@@ -596,11 +797,11 @@ floor() {
     return 0
 }
 
-## getBCScale: Get the current scale setting for BC.
-#  Usage: getBCScale
+## get_precision: Get the current scale setting for BC.
+#  Usage: get_precision
 #  Default is 4
-#  See also setBCScale 
-getBCScale()
+#  See also set_precision 
+get_precision()
 {
     check_help $1 $FUNCNAME || return 1
     echo ${BTK_BCSCALE}
@@ -623,7 +824,7 @@ log2()
     check_help $1 $FUNCNAME || return 1
     local x=( `input "$@"` )
     for e in ${x[@]}; do
-	echo "scale=$(getBCScale); l($e)/l(2)"|bc -l
+	echo "scale=$(get_precision); l($e)/l(2)"|bc -l
     done
 }
 
@@ -643,13 +844,13 @@ max()
 ## mean: Compute the average of a list of numbers.
 #  Usage: mean N1 N2 N3 ...
 #  Returns the mean of the list. The precision of the result is
-#  determined by setBCScale.
-#  See also: setBCScale
+#  determined by set_precision.
+#  See also: set_precision
 mean()
 {
     check_help $1 $FUNCNAME || return 1
     local x=( `input "$@"` )
-    echo "scale=$(getBCScale);" $(sum "${x[@]}")/${#x[@]}|bc
+    echo "scale=$(get_precision);" $(sum "${x[@]}")/${#x[@]}|bc
 }
 
 ## min: Calculate the minimum of a list of numbers.
@@ -667,13 +868,13 @@ min()
 
 ## pi: Value of PI.
 #  Usage: pi
-#  Prints the value of PI. The precision is determined by setBCScale.
+#  Prints the value of PI. The precision is determined by set_precision.
 #
-#  See also setBCScale
+#  See also set_precision
 pi()
 {
     check_help $1 $FUNCNAME || return 1
-    echo "scale=$(getBCScale); 4*a(1)"| bc -l 
+    echo "scale=$(get_precision); 4*a(1)"| bc -l 
 }
 
 ## pow2: Base 2 power of numbers.
@@ -684,10 +885,10 @@ pow2()
     check_help $1 $FUNCNAME || return 1
     local x=( `input "$@"` )
     for e in ${x[@]}; do
-	if (isInteger $e); then
-	    echo "scale=$(getBCScale); 2^$e"|bc
+	if (is_integer $e); then
+	    echo "scale=$(get_precision); 2^$e"|bc
 	else
-	    echo "scale=$(getBCScale); e($e*l(2))"|bc -l
+	    echo "scale=$(get_precision); e($e*l(2))"|bc -l
 	fi
     done
 }
@@ -708,7 +909,7 @@ rand()
        local i=0
        while [[ $i -le $n ]];
        do
-	   x[$i]=`echo "scale=$(getBCScale);"$(od -N3 -An -i /dev/urandom)'/16777216'|bc`
+	   x[$i]=`echo "scale=$(get_precision);"$(od -N3 -An -i /dev/urandom)'/16777216'|bc`
            ((i++))
        done
    fi
@@ -725,7 +926,7 @@ round()
     local x=( `input "$@"` )
     for e in "${x[@]}"
     do
-      if (isNumeric $e); then
+      if (is_numeric $e); then
 	 echo $BC_ROUND"round($e)"|bc
       else
 	  echo "Error $e is not numeric"
@@ -735,11 +936,11 @@ round()
     return 0
 }
 
-## setBCScale: Set the precision for BC output.
-#  Usage: setBCScale integer
+## set_precision: Set the precision for BC output.
+#  Usage: set_precision integer
 #  If called without and argument defaults to 4.
-#  See also getBCScale
-setBCScale()
+#  See also get_precision
+set_precision()
 {
     check_help $1 $FUNCNAME || return 1
     BTK_BCSCALE=${1:-4}
@@ -755,7 +956,7 @@ sign()
     local x=( `input "$@"` )
     for e in "${x[@]}"
     do
-      if (isNumeric $e); then
+      if (is_numeric $e); then
 	  if ( float_cond "$e > 0" ); then
 	      echo 1
 	  elif ( float_cond "$e < 0" ); then
@@ -779,7 +980,7 @@ sqrt()
     local x=( `input "$@"` )
     for e in ${x[@]}; do
         if (float_cond "$e>=0"); then
-            echo "scale=$(getBCScale); sqrt($e)"|bc
+            echo "scale=$(get_precision); sqrt($e)"|bc
         else
 	    echo "$e is negative"
 	    return 1
@@ -897,7 +1098,7 @@ bail()
 #  color red
 #  color red underline reverse
 #
-#  See also: colorBG
+#  See also: color_bg
 color()
 {
     check_help $1 $FUNCNAME || return 1
@@ -927,8 +1128,8 @@ color()
 
 }
 
-## colorBG: Set terminal foreground, background color and attributes.
-#  Usage: colorBG FGCOLOR [BGCOLOR] [ATTR1] ...
+## color_bg: Set terminal foreground, background color and attributes.
+#  Usage: color_bg FGCOLOR [BGCOLOR] [ATTR1] ...
 #  Set terminal foreground color to FGCOLOR, background color to
 #  BGCOLOR and sets optional attributes ATTR. Colors can be one of
 #  [red, green, yellow, blue, magenta, cyan, white, black]. ATTR can
@@ -940,7 +1141,7 @@ color()
 #  color red white bold underline
 #
 #  See also: color
-colorBG()
+color_bg()
 {
     check_help $1 $FUNCNAME || return 1
     local fgcol=$(upper "$1")
@@ -1132,7 +1333,7 @@ printErrorHelpAndExit()
 printHelpAndExit()
 {
     check_help $1 $FUNCNAME || return 1
-    if isDefined $usageHelp; then
+    if is_defined $usageHelp; then
 	echo -e "$usageHelp"
     fi
     quit 1
@@ -1145,7 +1346,7 @@ printHelpAndExit()
 #  returns 1 or EXIT CODE.
 quit()
 {
-    if isInteractive; then
+    if is_interactive; then
 	kill -s SIGINT $$
 	return ${1:-1}
     else
@@ -1176,7 +1377,7 @@ colorize()
     local terms=( "$@" )
     local col='\033[1;31m'
     local reset='\033[0m'
-    if isPipeIn; then
+    if is_pipein; then
 	while read l; do
 	    for t in "${terms[@]}";
 	    do
@@ -1194,18 +1395,18 @@ lower()
     echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
 }
 
-## strDeblank: Remove trailing spaces from the end of a string.
-strDeblank()
+## str_deblank: Remove trailing spaces from the end of a string.
+str_deblank()
 {
     check_help $1 $FUNCNAME || return 1
     echo "$(input $@)" | sed 's/ *$//'
 }
 
-## strRep: Repeat a string.
-#  Usage: strRep STR NREP [MAXLEN]
+## str_rep: Repeat a string.
+#  Usage: str_rep STR NREP [MAXLEN]
 #  Repeats the string STR NREP times. If MAXLEN is specified truncates
 #  the output at a maximum length.
-strRep()
+str_rep()
 {
     check_help $1 $FUNCNAME || return 1
     local s="$1"
@@ -1226,17 +1427,17 @@ strRep()
     fi
 }
 
-## strTok: Split string into parts separated by a delimiter.
-#  Usage: strTok -s STR -t DLM
-#         PIPE | strTok -t DLM
+## str_tok: Split string into parts separated by a delimiter.
+#  Usage: str_tok -s STR -t DLM
+#         PIPE | str_tok -t DLM
 #  Splits STR into parts based on the delimiter DLM. The delimiter
 #  defaults to ' ' if not specified
 #
 #  Example
-#  x=(`strTok -s 'foo:bar:abc' -t ':'`)
+#  x=(`str_tok -s 'foo:bar:abc' -t ':'`)
 #  echo "number of parts:" ${#x[@]}
 #  echo ${x[@]}
-strTok()
+str_tok()
 {
     check_help $1 $FUNCNAME || return 1
     local tok=' '
@@ -1253,8 +1454,8 @@ strTok()
     done
 }
 
-## strTrim: Remove leading and trailing spaces from a string.
-strTrim()
+## str_trim: Remove leading and trailing spaces from a string.
+str_trim()
 {
     check_help $1 $FUNCNAME || return 1
     echo "$(input $@)" | sed 's/^ *//; s/ *$//'
@@ -1285,6 +1486,11 @@ checkDep()
 
 # Check if dependencies exist
 checkDep 'bc' 'python' 'awk' 'readlink' 'stat'
+
+# initialize colors and width for init messages
+_use_color
+_calc_columns
+
 if [  "$BASH_SOURCE" != "$0" ]; then
     # library was sourced
     if [ "$1" != '-q' ]; then
