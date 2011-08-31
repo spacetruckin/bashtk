@@ -1,6 +1,9 @@
 BashTk: BASH Toolkit v1.0-rc1
-A library of BASH utility routines.
-Copyright 2011 Rajiv Narayan
+Copyright 2011, Rajiv Narayan
+-----------------------------
+
+A BASH library of simple utility functions with support for basic math,
+string operations, init-style message notifications and logging.
 
 Usage: bashtk [options]
 Options:
@@ -8,9 +11,9 @@ Options:
 -h Print this help message and exit
 
 To use the library, simply source the file using:
-source /xchip/cogs/matlib/bin/bashtk
+source ./bashtk
 
-Type btkhelp for a list of available commands.
+After sourcing the library, type btkhelp for a list of available commands.
 
 License:
 This program is free software: you can redistribute it and/or modify

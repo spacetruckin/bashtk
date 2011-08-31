@@ -1,10 +1,14 @@
 #!/bin/bash
 # BASHTK: BASH Toolkit
 #
-# A library of BASH utility routines.
-# -----------------------------------
+# A simple BASH script library with support for:
+# Basic math
+# String operations
+# Message notification
+# Logging
+# ----------------------------
 # Copyright 2011 Rajiv Narayan
-# -----------------------------------
+# ----------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +22,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# TODO:
+# data structures
+# TODO: hash table : 
+# http://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
 
 # Current version
 BTK_VERSION="1.0-rc1"
@@ -33,11 +42,14 @@ BTK_ENABLE_LOG=0 #enable logging
 BTK_LOG_FILE='' #log filename
 BTK_LOG_DATE_FORMAT='%b %e %H:%M:%S' #date format for log
 BTK_DEBUG=0 #enable / disable debug messages
-BTK_BCSCALE=4 #precision for bc calculator
+BTK_PRECISION=6 #precision for bc calculator
+BTK_USECOLOR=1 #enable terminal colors
 
-usageHelp="\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
-A library of BASH utility routines.
-Copyright 2011 Rajiv Narayan
+usageHelp="-----------------------------
+\033[1;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
+Copyright 2011, Rajiv Narayan
+-----------------------------
+A BASH library of simple utility functions.
 
 Usage: bashtk [options]
 Options:
@@ -47,11 +59,8 @@ Options:
 To use the library, simply source the file using:
 source $BTK_PATH
 
-Type \033[0;32mbtkhelp\033[0m for a list of available commands.
+After sourcing the library, type \033[1;31mbtkhelp\033[0m for a list of available commands.
 "
-#test_help=('check_help' '$1' '$FUNCNAME' '||' 'return 1')
-#CHECK_HELP=('eval if [[ $1 == -h ]]; then btkhelp $FUNCNAME; return 1; fi')  
-CHECK_HELP=('')
 check_help()
 {
     if [[ $1 == -h ]]; then 
@@ -59,17 +68,18 @@ check_help()
 	return 1; 
     fi
 }
+
 btkhelp()
 {
-    echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m"
+    echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m\n"
     if [[ -z $1 ]]; then
-	echo "List of available commands:"
+	echo "A list of available commands:"
 	awk '
 /^### .*/ {gsub ("^#* *",""); print "\033[4;1;31m""\n"$0"\033[0m";}
 /^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[1;32m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
 	echo
-	echo "Type <command> -h or btkhelp <command> for help on a specific command."
+	echo "Type <command> -h or btkhelp <command> for help on a specific command." | colorize 'btkhelp'
     else
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
 if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[0;32m"a[1]"\033[0m"a[2];} 
@@ -220,30 +230,6 @@ full_file()
     return 0 #success
 }
 
-## is_dir: Test if directory exists.
-#  Usage: is_dir DIRNAME
-#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
-#
-# Example
-# if ! (is_dir myfolder); then echo 'folder does not exist'; fi
-is_dir()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ -d $1 ]]
-}
-
-## is_file: Test if file exists.
-#  Usage: is_file FILENAME
-#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
-#
-#  Example 
-#  if (is_file myfile.txt); then echo 'file exists'; fi
-is_file()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ -f $1 ]]
-}
-
 ## require: Test if a command is available.
 #  Usage: require CMD
 #  Returns an exit code of 0 if CMD exists or >0 otherwise
@@ -259,6 +245,22 @@ require ()
 ################
 ### IO functions
 ################
+
+## bail: Exit on error.
+#  Usage: bail MESSAGE
+#  Checks the exit status of the last command and prints MESSAGE and
+#  exits if status is non-zero.  Returns the status as the exit code.
+bail()
+{
+    if [[ $? -gt 0 ]]; then
+	{
+	    [[ -n "$@" ]] && echo "$@"
+	    quit 1
+	}
+    fi
+    return 0
+}
+
 ## file2array: Read a text file into an array.
 #  Usage: file2array FILENAME
 #  Reads each line in FILENAME into an array
@@ -335,81 +337,25 @@ inputType()
     echo $t
 }
 
-## is_filein: Test if script received a file redirection input.
-#  Usage: is_filein
-#  Returns 0 if a file redirection input was detected, 1 if not
-is_filein()
+## quit: Exit with error code.
+#  Usage: quit [EXIT CODE]
+#  Replacement for exit. When called from a script exits with status 1
+#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
+#  returns 1 or EXIT CODE.
+quit()
 {
-    check_help $1 $FUNCNAME || return 1
-    if ! is_pipein && ! isStdin; then
-	return 0
+    if is_interactive; then
+	kill -s SIGINT $$
+	return ${1:-1}
     else
-	return 1
+	exit ${1:-1}
     fi
 }
 
-## is_linux: Test for GNU linux.
-#  Usage: is_linux
-#  Returns 0 for linux and 1 otherwise.
-is_linux()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ $OSTYPE =~ linux ]]
-}
-
-## is_mac: Test for Mac OS X.
-#  Usage: is_mac
-#  Returns 0 for Mac and 1 otherwise.
-is_mac()
-{
-    check_help $1 $FUNCNAME || return 1
-    [[ $OSTYPE =~ darwin ]]
-}
-
-## is_pipein: Test if script received a pipe input.
-#  Usage: is_pipein
-#  Returns 0 if a pipe input was detected, 1 if not
-is_pipein()
-{
-    check_help $1 $FUNCNAME || return 1
-    if is_linux; then
-	local src=$(readlink /proc/self/fd/0)
-	if [[ $src =~ ^pipe: ]]; then
-	    return 0
-	fi
-    elif is_mac; then
-	x=$(stat -f %HT /dev/fd/0)
-	if [[ $x =~ 'Fifo' ]]; then
-	    return 0
-	fi
-    fi
-    return 1
-}
-
-## is_stdin: Test if script received standard input.
-#  Usage: is_stdin
-#  Returns 0 if a standard input was detected, 1 if not
-is_stdin()
-{
-    check_help $1 $FUNCNAME || return 1
-    if is_linux; then
-	local src=$(file `readlink /proc/self/fd/0`)
-	if [[ $src =~ character\ special ]]; then
-	    return 0
-	fi
-    elif is_mac; then
-	x=$(stat -f %HT /dev/fd/0)
-	if [[ $x =~ 'Character' ]]; then
-	    return 0
-	fi
-    fi
-    return 1
-}
-
-# data structures
-# TODO: hash table : 
-# http://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
+##############################
 ### Init style status messages
+##############################
+# Modified from the Arch Linux initscripts package
 
 # Status message prefixes:
 PREFIX_REG="::"
@@ -578,7 +524,7 @@ stat_busy()
 stat_die() 
 {
 	stat_fail
-	exit ${1:-1}
+	quit ${1:-1}
 }
 
 ## stat_fail: Prints fail status.
@@ -628,6 +574,18 @@ is_defined()
     [[ ! -z "${1+x}" ]]
 }
 
+## is_dir: Test if directory exists.
+#  Usage: is_dir DIRNAME
+#  Returns an exit code of 0 if DIRNAME exists or 1 otherwise
+#
+# Example
+# if ! (is_dir myfolder); then echo 'folder does not exist'; fi
+is_dir()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ -d $1 ]]
+}
+
 ## is_empty: Test if a string is empty.
 # example 
 # if (is_empty "foo"); then echo 'string is not empty'; fi
@@ -635,6 +593,31 @@ is_empty()
 {
     check_help $1 $FUNCNAME || return 1
     [[ -z $1 ]]
+}
+
+## is_file: Test if file exists.
+#  Usage: is_file FILENAME
+#  Returns an exit code of 0 if FILENAME exists or 1 otherwise
+#
+#  Example 
+#  if (is_file myfile.txt); then echo 'file exists'; fi
+is_file()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ -f $1 ]]
+}
+
+## is_filein: Test if script received a file redirection input.
+#  Usage: is_filein
+#  Returns 0 if a file redirection input was detected, 1 if not
+is_filein()
+{
+    check_help $1 $FUNCNAME || return 1
+    if ! is_pipein && ! isStdin; then
+	return 0
+    else
+	return 1
+    fi
 }
 
 ## is_integer: Test if a variable is an integer.
@@ -658,6 +641,30 @@ is_interactive()
 #    [[ -n "$PS1" ]]
 }
 
+## is_linux: Test for GNU linux.
+#  Usage: is_linux
+#  Returns 0 for linux and 1 otherwise.
+#  
+#  Example:
+#  is_linux && echo 'go tux!' || echo 'no cigar'
+is_linux()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ $OSTYPE =~ linux ]]
+}
+
+## is_mac: Test for Mac OS X.
+#  Usage: is_mac
+#  Returns an exit code of 0 for Mac OS and 1 otherwise.
+#  
+#  Example:
+#  is_mac && echo 'im a lemon' || echo 'not a lemon'
+is_mac()
+{
+    check_help $1 $FUNCNAME || return 1
+    [[ $OSTYPE =~ darwin ]]
+}
+
 ## is_numeric: Test if a variable is numeric.
 #  Usage: is_numeric VAR
 #  Returns an exit code of 0 if VAR is numeric or 1 if not.
@@ -667,6 +674,46 @@ is_numeric()
 {
     check_help $1 $FUNCNAME || return 1
     [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
+}
+
+## is_pipein: Test if script received a pipe input.
+#  Usage: is_pipein
+#  Returns 0 if a pipe input was detected, 1 if not
+is_pipein()
+{
+    check_help $1 $FUNCNAME || return 1
+    if is_linux; then
+	local src=$(readlink /proc/self/fd/0)
+	if [[ $src =~ ^pipe: ]]; then
+	    return 0
+	fi
+    elif is_mac; then
+	x=$(stat -f %HT /dev/fd/0)
+	if [[ $x =~ 'Fifo' ]]; then
+	    return 0
+	fi
+    fi
+    return 1
+}
+
+## is_stdin: Test if script received standard input.
+#  Usage: is_stdin
+#  Returns 0 if a standard input was detected, 1 if not
+is_stdin()
+{
+    check_help $1 $FUNCNAME || return 1
+    if is_linux; then
+	local src=$(file `readlink /proc/self/fd/0`)
+	if [[ $src =~ character\ special ]]; then
+	    return 0
+	fi
+    elif is_mac; then
+	x=$(stat -f %HT /dev/fd/0)
+	if [[ $x =~ 'Character' ]]; then
+	    return 0
+	fi
+    fi
+    return 1
 }
 
 ##################
@@ -750,9 +797,11 @@ ceil() {
 
 ## float_cond: Evaluate a floating point number conditional expression.
 #  Usage: float_cond CONDITIOAL_EXPRESSION
-#  Evaluates CONDITIONAL_EXPRESSION and sets the return/status code to
-#  zero if the expression is true and one if it's false.
-#  Example: if (float_cond '12.0 > 3.0'); then echo true; fi
+#  Evaluates CONDITIONAL_EXPRESSION using bc and sets the
+#  return/status code to zero if the expression is true and one if
+#  it's false.
+#
+#  Example: if (float_cond '2.5^2 > 3.0'); then echo true; fi
 #  See also: float_eval
 
 # Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
@@ -775,7 +824,7 @@ function float_cond()
 #  Returns the largest integer that is not greater than N.
 floor() { 
     check_help $1 $FUNCNAME || return 1
-# BC solution
+# a BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
     local x=( `input "$@"` )
     local BC_CEIL="define ceil(x) { auto savescale; savescale = scale;
@@ -797,14 +846,14 @@ floor() {
     return 0
 }
 
-## get_precision: Get the current scale setting for BC.
+## get_precision: Get the current floating point precision.
 #  Usage: get_precision
-#  Default is 4
+#  Default is 6
 #  See also set_precision 
 get_precision()
 {
     check_help $1 $FUNCNAME || return 1
-    echo ${BTK_BCSCALE}
+    echo ${BTK_PRECISION}
 }
 
 ## length: Length of a list.
@@ -936,14 +985,14 @@ round()
     return 0
 }
 
-## set_precision: Set the precision for BC output.
+## set_precision: Set floating point precision.
 #  Usage: set_precision integer
-#  If called without and argument defaults to 4.
+#  If called without and argument defaults to 6.
 #  See also get_precision
 set_precision()
 {
     check_help $1 $FUNCNAME || return 1
-    BTK_BCSCALE=${1:-4}
+    BTK_PRECISION=${1:-6}
 }
 
 ## sign: Signum function.
@@ -1013,7 +1062,6 @@ END{print sqrt(sum2/(NF - 1))}')
 #  Example:
 #  x={1..5}
 #  sum ${x[@]}
-
 sum()
 {
     check_help $1 $FUNCNAME || return 1
@@ -1039,9 +1087,9 @@ END{print sum2/(NF - 1)}')
 
 # prctile
 
-######################
+########################
 ### Messages and Logging
-######################
+########################
 
 # _getAttrValue: Get terminal attribute values. 
 # private function
@@ -1051,39 +1099,31 @@ _getAttrValue()
     local val=''
     local stat=0
     case "$1" in
-	BLACK) val=0;;
-	RED) val=1;;
-	GREEN) val=2;;
-	YELLOW) val=3;;
-	BLUE) val=4 ;;
-	MAGENTA) val=5;;
-	CYAN) val=6;;
-	WHITE) val=7;;
-	DEFAULT) val='sgr0';;
-	RESET) val='sgr0';;
-	BOLD) val='bold';;
-	UNDERLINE) val='smul';;
-	BLINK) val='blink';;
-	REVERSE) val='rev';;
+	BLACK) val=${C_BLACK};;
+	RED) val=${C_RED};;
+	GREEN) val=${C_GREEN};;
+	YELLOW) val=${C_YELLOW};;
+	BLUE) val=${C_BLUE};;
+	MAGENTA) val=${C_MAGENTA};;
+	CYAN) val=${C_CYAN};;
+	WHITE) val=${C_WHITE};;
+	BLACKBG) val=${C_BLACK_BG};;
+	REDBG) val=${C_RED_BG};;
+	GREENBG) val=${C_GREEN_BG};;
+	YELLOWBG) val=${C_YELLOW_BG};;
+	BLUEBG) val=${C_BLUE_BG};;
+	MAGENTABG) val=${C_MAGENTA_BG};;
+	CYANBG) val=${C_CYAN_BG};;
+	WHITEBG) val=${C_WHITE_BG};;
+	DEFAULT) val=${C_CLEAR};;
+	RESET) val=${C_CLEAR};;
+	BOLD) val=${C_BOLD};;
+	UNDERLINE) val=${C_UNDERLINE};;
+	REVERSE) val=${C_REVERSE};;
 	*) stat=1;;
     esac
     echo $val
     return $stat
-}
-
-## bail: Exit on error.
-#  Usage: bail MESSAGE
-#  Checks the exit status of the last command and prints MESSAGE and
-#  exits if status is non-zero.  Returns the status as the exit code.
-bail()
-{
-    if [[ $? -gt 0 ]]; then
-	{
-	    [[ -n "$@" ]] && echo "$@"
-	    quit 1
-	}
-    fi
-    return 0
 }
 
 ## color: Set terminal color and attributes.
@@ -1113,55 +1153,21 @@ color()
 	for e in "${effect[@]}"; do
 	    local effectval=$(_getAttrValue $e)
 	    if [[ -n $effectval ]]; then
-		tput $effectval
+		echo -ne $effectval
 	    fi
 	done
     fi
 
-    if [[ $fgcol == 'DEFAULT' || $fgcol == 'RESET' ]]; then
-	tput $fgval
-    else
-	if [[ -n $fgval ]]; then 
-	    tput setaf $fgval
-	fi
-    fi
-
-}
-
-## color_bg: Set terminal foreground, background color and attributes.
-#  Usage: color_bg FGCOLOR [BGCOLOR] [ATTR1] ...
-#  Set terminal foreground color to FGCOLOR, background color to
-#  BGCOLOR and sets optional attributes ATTR. Colors can be one of
-#  [red, green, yellow, blue, magenta, cyan, white, black]. ATTR can
-#  be [bold, underline, reverse]. Calling color without arguments or
-#  setting COLOR to 'reset' sets the color to the default.
-#
-#  Example:
-#  color red 
-#  color red white bold underline
-#
-#  See also: color
-color_bg()
-{
-    check_help $1 $FUNCNAME || return 1
-    local fgcol=$(upper "$1")
-    local bgcol=$(upper "$2")
-    fgcol=${fgcol:-RESET}
-    bgcol=${bgcol:-RESET}
-    shift $(min 2 $#)
-    local effect=(`upper "$@"`)
-    color $fgcol "${effect[@]}"
-    local bgval=$(_getAttrValue $bgcol)
-    if [[ -n $bgval ]]; then
-	tput setab $bgval
+    if [[ -n $fgval ]]; then 
+	echo -ne $fgval
     fi
 }
 
 ## log: Write a message to a logfile.
 #  Usage log MSG
-#  Writes MSG to the logfile specified by logon. Note will fail
+#  Writes MSG to the logfile specified by log_on. Note will fail
 #  silently if logging has not been enabled.
-#  See also: logon, logoff, msg
+#  See also: log_on, log_off, msg
 log()
 {
     check_help $1 $FUNCNAME || return 1
@@ -1176,21 +1182,21 @@ log()
     fi
 }
 
-## logcat: Display contents of the log file.
-#  Usage: logcat
-logcat()
+## log_cat: Display contents of the log file.
+#  Usage: log_cat
+log_cat()
 {
     check_help $1 $FUNCNAME || return 1
-    if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
+    if [[ -f $BTK_LOG_FILE ]]; then
 	cat "$BTK_LOG_FILE"
     else
-	echo "Logging not enabled"
+	echo "Log file not found."
     fi
 }
 
-## logname: Displays path of the current logfile.
-#  Usage: logname
-logname()
+## log_name: Displays path of the current logfile.
+#  Usage: log_name
+log_name()
 {
     check_help $1 $FUNCNAME || return 1
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
@@ -1200,24 +1206,24 @@ logname()
     fi
 }
 
-## logoff: Stop logging to file.
-#  Usage: logoff [MSG]
+## log_off: Stop logging to file.
+#  Usage: log_off [MSG]
 #  Write End log message to log and stops logging. 
-#  See also: logon
-logoff()
+#  See also: log_on
+log_off()
 {
     check_help $1 $FUNCNAME || return 1
     local m="${@:---- End log ---}"
     log "$m"
-    logsuspend
+    log_suspend
 }
 
-## logon: Begin logging to file.
-#  Usage: logon LOGFILE
+## log_on: Begin logging to file.
+#  Usage: log_on LOGFILE
 #  Turns on logging and specifies the logfile. All subsequent calls to
 #  msg or log will be written to the logfile.
-#  See also: logoff, log
-logon()
+#  See also: log_off, log
+log_on()
 {
     check_help $1 $FUNCNAME || return 1
     if [[ -n $1 ]]; then
@@ -1226,51 +1232,51 @@ logon()
 	BTK_ENABLE_LOG=1
 	log '--- Begin log ---'
     else
-	echo "logon: must specify logfile"
+	echo "log_on: must specify logfile"
     fi
 }
 
-## logreset: Resets the content of the current logfile.
-#  Usage: logreset
-logreset()
+## log_reset: Resets the content of the current logfile.
+#  Usage: log_reset
+log_reset()
 {
     check_help $1 $FUNCNAME || return 1
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	rm -f "$BTK_LOG_FILE"
-	logon "$BTK_LOG_FILE"
+	log_on "$BTK_LOG_FILE"
     else
         echo "Logging not enabled"
     fi
 }
 
-## logresume: Resume logging to file.
-#  Usage: logresume
-#  See also: logsuspend
-logresume()
+## log_resume: Resume logging to file.
+#  Usage: log_resume
+#  See also: log_suspend
+log_resume()
 {
     check_help $1 $FUNCNAME || return 1
     if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
-	logon "$BTK_LOG_FILE"
+	log_on "$BTK_LOG_FILE"
     elif [[ ! -f $BTK_LOG_FILE ]]; then
 	echo 'Logfile does not exist, cannot resume.'
     fi
 }
 
-## logsuspend: Temporarily stop logging to file.
-#  Usage: logsuspend
-#  See also: logresume
-logsuspend()
+## log_suspend: Temporarily stop logging to file.
+#  Usage: log_suspend
+#  See also: log_resume
+log_suspend()
 {
     check_help $1 $FUNCNAME || return 1
     BTK_ENABLE_LOG=0
 }
 
-## logtail: Display the last part of the logfile.
-#  Usage: logtail [N]
+## log_tail: Display the last part of the logfile.
+#  Usage: log_tail [N]
 #  Prints the last 10 lines of the log file. If N is specified prints
 #  the last N lines.
 
-logtail()
+log_tail()
 {
     check_help $1 $FUNCNAME || return 1
     local n=${1:-10}
@@ -1337,21 +1343,6 @@ printHelpAndExit()
 	echo -e "$usageHelp"
     fi
     quit 1
-}
-
-## quit: Exit with error code.
-#  Usage: quit [EXIT CODE]
-#  Replacement for exit. When called from a script exits with status 1
-#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
-#  returns 1 or EXIT CODE.
-quit()
-{
-    if is_interactive; then
-	kill -s SIGINT $$
-	return ${1:-1}
-    else
-	exit ${1:-1}
-    fi
 }
 
 ####################
@@ -1488,7 +1479,7 @@ checkDep()
 checkDep 'bc' 'python' 'awk' 'readlink' 'stat'
 
 # initialize colors and width for init messages
-_use_color
+[[ $BTK_USECOLOR -eq 1 ]] && _use_color
 _calc_columns
 
 if [  "$BASH_SOURCE" != "$0" ]; then
