@@ -1504,7 +1504,6 @@ hist()
 {
     _check_help $1 $FUNCNAME || quit 1
     _check_gnuplot
-    local bin_width=0.2
     local n=10
     local title=''
     local xlabel=''
@@ -1522,7 +1521,7 @@ hist()
     if [[ ${#x[@]} -gt 0 ]]; then
 	#compute bin_width
 	local lh=(`minmax "${x[@]}"`) 
-	local bw=$(calc "(${lh[1]}-${lh[0]})/$n")
+	local bw=$(calc "(${lh[1]} - ${lh[0]}) / $n")
 	echo "${x[@]}" | tr ' ' '\n' > $datfile
 	(
 	    echo "bin_width = ${bw};"

@@ -42,8 +42,10 @@ calc 'sqrt(2)*100/2'
 msg
 
 msg 'Plotting functions' cyan underline
+msg 'Line plot'
 linspace 1 10 100|log2|line
-rand 100|hist
+msg 'Histogram'
+rand 500|hist -n 20 -t 'Random numbers' -x 'X' -y 'Count'
 
 msg 'String utilities' cyan underline
 echo 'upperCase'|upper
