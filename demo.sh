@@ -20,21 +20,21 @@ echo 'Reset to default color.'
 echo
 
 msg 'Init-style status notification' cyan underline
-stat_busy 'Running...'
+status_busy 'Running...'
 sleep 2
-stat_append 'done'
-stat_pass
-status 'Status of ls -l' ls -l 
-stat_busy 'Test 0 > 1'
-[[ 0 -gt 1 ]] && stat_pass|| stat_fail
+status_append 'done'
+status_pass
+ls -l > /dev/null
+status 'Status of ls -l' 
+status_cmd 'Test 0 > 1' [[ 0 -gt 1 ]]
 echo
 
 msg 'Math functions' cyan underline
 x=(`echo {1..10}`)
 echo "x=${x[@]}"
 msg 'length x='`length ${x[@]}`
-msg 'sum x ='`sum ${x[@]}`
-msg 'mean x ='`mean ${x[@]}`
+msg 'sum x='`sum ${x[@]}`
+msg 'mean x='`mean ${x[@]}`
 msg 'Commands accept pipes: echo {1..5}|pow2|sqrt'
 echo {1..5} | pow2 |sqrt
 msg "Evaluate expressions: calc 'sqrt(2)*100/2'"

@@ -6,9 +6,9 @@
 # String operations
 # Message notification
 # Logging
-# ----------------------------
-# Copyright 2011 Rajiv Narayan
-# ----------------------------
+# -----------------------------
+# Copyright 2011, Rajiv Narayan
+# -----------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ BTK_DEBUG=0 #enable / disable debug messages
 BTK_PRECISION=6 #precision for bc calculator
 BTK_USECOLOR=1 #enable terminal colors
 
-usageHelp="-----------------------------
+USAGE_HELP="-----------------------------
 \033[1;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
 Copyright 2011, Rajiv Narayan
 -----------------------------
@@ -76,13 +76,13 @@ btkhelp()
 	echo "A list of available commands:"
 	awk '
 /^### .*/ {gsub ("^#* *",""); print "\033[4;1;31m""\n"$0"\033[0m";}
-/^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[1;32m"a[1]"\033[0m"a[2];}
+/^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[1;34m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
 	echo
 	echo "Type <command> -h or btkhelp <command> for help on a specific command." | colorize 'btkhelp'
     else
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
-if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[0;32m"a[1]"\033[0m"a[2];} 
+if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[1;34m"a[1]"\033[0m"a[2];} 
 else if (/^#.*/) {gsub("^#* *","  "); print};
 }' $BTK_PATH
 	echo
@@ -252,6 +252,7 @@ require ()
 #  exits if status is non-zero.  Returns the status as the exit code.
 bail()
 {
+    check_help $1 $FUNCNAME || return 1
     if [[ $? -gt 0 ]]; then
 	{
 	    [[ -n "$@" ]] && echo "$@"
@@ -344,12 +345,25 @@ inputType()
 #  returns 1 or EXIT CODE.
 quit()
 {
+    check_help $1 $FUNCNAME || return 1
     if is_interactive; then
 	kill -s SIGINT $$
 	return ${1:-1}
     else
 	exit ${1:-1}
     fi
+}
+
+## yesno: Prompt for a reply.
+#  Usage: yesno [MSG]
+#  Prompts for a yes/no reply. If the reply is 'y' returns an exit
+#  code of 0, else returns 1.
+yesno()
+{
+    local m="${1-Reply }"
+    read -p "$m (y/n)?:" -n 1 ans
+    echo
+    [[ $ans == [yY] ]]
 }
 
 ##############################
@@ -420,8 +434,6 @@ _use_color()
     C_MAIN=${C_CLEAR}
 # prefix & brackets
     C_OTHER=${C_MAIN}${C_BOLD}${C_BLUE}
-# separator
-    C_SEPARATOR=${C_MAIN}${C_BOLD}${C_CYAN}
 # busy
     C_BUSY=${C_CLEAR}${BOLD}${C_YELLOW}
 # failed
@@ -473,88 +485,108 @@ _calc_columns ()
 # deltext: position cursor for status messages.
 deltext() 
 {
-	printf "${DEL_TEXT}"
+    printf "${DEL_TEXT}"
 }
 
-## print_hl: Print highlighted message
-#  Usage: print_hl
+## print_hl: Print highlighted notification.
+#  Usage: print_hl [MSG] [COLOR]
+#  Prints MSG 
 print_hl() 
 {
-	printf "${C_OTHER}${PREFIX_HL} ${C_H1}${1}${C_CLEAR} \n"
+    check_help $1 $FUNCNAME || return 1
+    local m="${1}"
+    shift
+    local attr="$(color_string ${@-BLUE})"
+    
+    printf "${C_OTHER}${PREFIX_HL} ${attr}${m}${C_CLEAR} \n"
 }
 
-## print_sep: Prints a line separator.
-#  Usage: print_sep
-print_sep() 
-{
-	printf "\n${C_SEPARATOR}   ------------------------------\n"
-}
-
-## stat_append: Appends text to message line.
-#  Usage: stat_append
-stat_append() 
-{
-	printf "${RESTORE_POSITION}"
-	printf -- "${C_MAIN}${1}${C_CLEAR}"
-	printf "${SAVE_POSITION}"
-}
-
-## stat_bkgd: Prints background status.
-#  Usage: stat_bkgd
-stat_bkgd() 
-{
-	printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
-	deltext
-	printf "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
-}
-
-## stat_busy: Prints busy status.
-#  Usage: stat_busy
-stat_busy() 
-{
-	printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
-	printf "${SAVE_POSITION}"
-	deltext
-	printf "   ${C_OTHER}[${C_BUSY}BUSY${C_OTHER}]${C_CLEAR} "
-}
-
-## stat_die: Exit after printing error message.
-#  Usage: stat_die [EXIT_CODE]
-#  Prints fail status and exits with 1 or specified code.
-stat_die() 
-{
-	stat_fail
-	quit ${1:-1}
-}
-
-## stat_fail: Prints fail status.
-#  Usage: stat_fail
-stat_fail() 
-{
-	deltext
-	printf "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} \n"
-}
-
-## stat_pass: Prints pass status.
-#  Usage: stat_pass
-stat_pass() 
-{
-	deltext
-	printf "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} \n"
-}
-
-## status: Execute command and print exit status.
-#  Usage: status MSG CMD ARGS
-#  Prints MSG and executes the command CMD with arguments ARGS and
-#  reports exit status.
+## status: Report exit status of last executed command.
+#  Usage: status
+#  If $? is 0 issues status_pass else status_fail. Also returns the
+#  exit code of the last command.
 status()
 {
-	stat_busy "$1"
-	shift
-	"$@" &>/dev/null
-	local ret=$?
-	(( ret == 0 )) && stat_pass || stat_fail
-	return $ret
+    local ret=$?
+    check_help $1 $FUNCNAME || return 1
+    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    [[ $ret -eq 0 ]] && status_pass || status_fail
+    return $ret
+}
+
+## status_append: Appends text to message line.
+#  Usage: status_append
+status_append() 
+{
+    check_help $1 $FUNCNAME || return 1
+    printf "${RESTORE_POSITION}"
+    printf -- "${C_MAIN}${1}${C_CLEAR}"
+    printf "${SAVE_POSITION}"
+}
+
+## status_bkgd: Prints background status.
+#  Usage: status_bkgd
+status_bkgd() 
+{
+    check_help $1 $FUNCNAME || return 1
+    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    deltext
+    printf "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
+}
+
+## status_busy: Prints busy status.
+#  Usage: status_busy
+status_busy() 
+{
+    check_help $1 $FUNCNAME || return 1
+    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    printf "${SAVE_POSITION}"
+    deltext
+    printf "   ${C_OTHER}[${C_BUSY}BUSY${C_OTHER}]${C_CLEAR} "
+}
+
+## status_cmd: Execute command and print exit status.
+#  Usage: status_cmd MSG CMD ARGS
+#  Prints MSG and executes the command CMD with arguments ARGS and
+#  reports exit status.
+status_cmd()
+{
+    check_help $1 $FUNCNAME || return 1
+    status_busy "$1"
+    shift
+    "$@" &>/dev/null
+    local ret=$?
+    deltext
+    [[ $ret -eq 0 ]] && status_pass || status_fail
+    return $ret
+}
+
+## status_die: Exit after printing error message.
+#  Usage: status_die [EXIT_CODE]
+#  Prints fail status and exits with 1 or specified code.
+status_die() 
+{
+    check_help $1 $FUNCNAME || return 1
+    status_fail
+    quit ${1:-1}
+}
+
+## status_fail: Prints fail status.
+#  Usage: status_fail
+status_fail() 
+{
+    check_help $1 $FUNCNAME || return 1
+    deltext
+    printf "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} \n"
+}
+
+## status_pass: Prints pass status.
+#  Usage: status_pass
+status_pass() 
+{
+    check_help $1 $FUNCNAME || return 1
+    deltext
+    printf "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} \n"
 }
 
 #################
@@ -962,7 +994,10 @@ rand()
            ((i++))
        done
    fi
-   echo "${x[@]}"
+   for e in "${x[@]}"
+   do
+       echo "$e"
+   done
 }
 
 ## round: Round to nearest integer.
@@ -1098,7 +1133,7 @@ _getAttrValue()
     check_help $1 $FUNCNAME || return 1
     local val=''
     local stat=0
-    case "$1" in
+    case $(upper "$1") in
 	BLACK) val=${C_BLACK};;
 	RED) val=${C_RED};;
 	GREEN) val=${C_GREEN};;
@@ -1117,6 +1152,7 @@ _getAttrValue()
 	WHITEBG) val=${C_WHITE_BG};;
 	DEFAULT) val=${C_CLEAR};;
 	RESET) val=${C_CLEAR};;
+	NORMAL) val=${C_NORMAL};;
 	BOLD) val=${C_BOLD};;
 	UNDERLINE) val=${C_UNDERLINE};;
 	REVERSE) val=${C_REVERSE};;
@@ -1138,29 +1174,50 @@ _getAttrValue()
 #  color red
 #  color red underline reverse
 #
-#  See also: color_bg
+#  See also: color_string
 color()
 {
     check_help $1 $FUNCNAME || return 1
-    local fgcol=$(upper "$1")
+    local fgcol="$1"
     fgcol=${fgcol:-RESET}
     bgcol=${bgcol:-RESET}
     shift $(min 1 $#)
-    local fgval=$(_getAttrValue $fgcol)
+    local fgval=$(color_string $fgcol)
 
     if [[ $# -gt 0 ]]; then
-	local effect=(`upper "$@"`)
-	for e in "${effect[@]}"; do
-	    local effectval=$(_getAttrValue $e)
-	    if [[ -n $effectval ]]; then
-		echo -ne $effectval
-	    fi
-	done
+	local effectval="$(color_string "$@")"
+	if [[ -n $effectval ]]; then
+	    echo -ne "$effectval"
+	fi
     fi
 
     if [[ -n $fgval ]]; then 
 	echo -ne $fgval
     fi
+}
+
+## color_string: Get ANSI escape string for terminal color and attributes.
+#  Usage: color_string FGCOLOR [ATTR1] ...
+#  Returns the ANSI escape sequence for the specified color and attributes.
+#  Calling color_string without arguments or setting COLOR to
+#  'reset' returns the reset string. 
+#
+#  Example:
+#  red=$(color_string red)
+#  reset=$(color_string)
+#  echo -e "${red}Foo${reset}"
+#
+#  See also: color
+color_string()
+{
+    check_help $1 $FUNCNAME || return 1
+    local attr
+    [[ $# -gt 0 ]] && attr=("$@") || attr=('reset')
+    local attrstr
+    for e in "${attr[@]}"; do
+	attrstr+="$(_getAttrValue $e)"
+    done
+    echo "${attrstr[@]}"
 }
 
 ## log: Write a message to a logfile.
@@ -1302,46 +1359,30 @@ msg()
     local m="$1"
     shift
     color "$@"
-    echo "$m"
+    echo -e "$m"
     color reset
     log "$m"
 }
 
-## printErrorAndExit: Print error message and quit.
-#  Usage: printErrorAndExit ERRMSG
-#  Prints ERRMSG and exits with error code 1
-printErrorAndExit()
+## msg_help: Print message, help and quit.
+#  Usage: msg_quit [MSG]
+#  Prints message MSG is specified and also the variable USAGE_HELP if
+#  defined. Exits with error code 1.
+msg_help()
 {
     check_help $1 $FUNCNAME || return 1
-    echo
-    echo "Error: $@"
-    echo
+    [[ $# -gt 0 ]] && msg "$@" red bold
+    is_defined "$USAGE_HELP" && msg "$USAGE_HELP"
     quit 1
 }
 
-## printErrorHelpAndExit: Print error message, help and quit.
-#  Usage: printErrorHelpAndExit ERRMSG
-#  Prints ERRMSG and the variable usageHelp if it exists. Exits with
-#  error code 1.
-printErrorHelpAndExit()
+## msg_quit: Print message and quit.
+#  Usage: msg_quit MSG
+#  Prints MSG and exits with error code 1
+msg_quit()
 {
     check_help $1 $FUNCNAME || return 1
-    echo
-    echo "Error: $@"
-    echo
-    printHelpAndExit
-}
-
-## printHelpAndExit: Display message and quit.
-#  Usage: printHelpAndExit EXIT_CODE
-#  Prints the variable $usageHelp if it exists and exits with
-#  EXIT_CODE
-printHelpAndExit()
-{
-    check_help $1 $FUNCNAME || return 1
-    if is_defined $usageHelp; then
-	echo -e "$usageHelp"
-    fi
+    msg "$@"
     quit 1
 }
 
@@ -1490,6 +1531,6 @@ if [  "$BASH_SOURCE" != "$0" ]; then
 else
     # Called directly
     if [ "$1" != '-q' ]; then
-	printHelpAndExit
+	msg_help
     fi
 fi
