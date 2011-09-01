@@ -41,6 +41,10 @@ msg "Evaluate expressions: calc 'sqrt(2)*100/2'"
 calc 'sqrt(2)*100/2'
 msg
 
+msg 'Plotting functions' cyan underline
+linspace 1 10 100|log2|line
+rand 100|hist
+
 msg 'String utilities' cyan underline
 echo 'upperCase'|upper
 echo 'LOwercase'|lower

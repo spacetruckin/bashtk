@@ -264,7 +264,9 @@ bail()
 
 ## file2array: Read a text file into an array.
 #  Usage: file2array FILENAME
-#  Reads each line in FILENAME into an array
+#  Prints each line in FILENAME, ignoring blank lines and lines that
+#  begin with a '#'
+#
 #  Example
 #  x=(`file2array foo.txt`)
 #  echo "number of elements:" ${#x[@]}
@@ -279,23 +281,6 @@ file2array()
 	do
 	    echo $e
 	done	
-    fi
-}
-
-## file2list: Read a text file into an list.
-#  Usage: file2list FILENAME
-#  Reads each line in FILENAME into a list. Blank lines and lines
-#  beginning with a '#' are ignored.
-#
-#  Example:
-#  x=(`file2list foo.txt`)
-#  echo ${x[@]}
-file2list()
-{
-    check_help $1 $FUNCNAME || return 1
-    local f="$1"
-    if is_file $f; then
-	echo `cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`
     fi
 }
 
@@ -755,8 +740,6 @@ is_stdin()
 ## abs: Absolute value.
 #  Usage: abs N1 [N2] ...
 #  Computes the absolute value of a list of numbers.
-
-#TODO: test if numeric
 abs()
 {
     check_help $1 $FUNCNAME || return 1
@@ -818,7 +801,11 @@ ceil() {
 
     for e in "${x[@]}"; do
 	if (is_numeric $e); then
-	    echo -e "scale=$(get_precision)\n"$BC_CEIL$BC_FLOOR"ceil($e)"|bc
+	    if [[ $e != 0 ]]; then
+		echo -e "scale=$(get_precision)\n"$BC_CEIL$BC_FLOOR"ceil($e)"|bc
+	    else
+		echo 0
+	    fi
 	else
 	    echo "Error $e is not numeric"
 	    return 1
@@ -869,7 +856,11 @@ floor() {
 
     for e in "${x[@]}"; do
 	if (is_numeric $e); then
-	    echo -e "scale=$(get_precision)\n"$BC_CEIL$BC_FLOOR"floor($e)"|bc
+	    if [[ $e != 0 ]]; then
+		echo -e "scale=$(get_precision)\n"$BC_CEIL$BC_FLOOR"floor($e)"|bc
+	    else
+		echo 0
+	    fi
 	else
 	    echo "Error $e is not numeric"
 	    return 1
@@ -922,6 +913,25 @@ max()
     fi
 }
 
+## linspace: Generate linearly spaced vectors.
+#  Usage: linspace A B [N]
+#  
+#  Example:
+#  linspace 1 10 100 
+linspace()
+{
+    check_help $1 $FUNCNAME || return 1
+    local a=${1?not defined}
+    local b=${2?not defined}
+    local n=`floor ${3-100}`
+    if [[ $n -ge 2 ]]; then
+	awk -v a=$a -v b=$b -v n=$n 'BEGIN{step=(b-a)/(n-1); for(i=0;i<=(n-2);i++) print a+i*step; print b;}'
+    else
+	echo $b
+    fi
+    return 0
+}
+
 ## mean: Compute the average of a list of numbers.
 #  Usage: mean N1 N2 N3 ...
 #  Returns the mean of the list. The precision of the result is
@@ -956,6 +966,21 @@ pi()
 {
     check_help $1 $FUNCNAME || return 1
     echo "scale=$(get_precision); 4*a(1)"| bc -l 
+}
+
+## plus: Add a constant to the input.
+#  Usage: plus C N1 N2 N3 ...
+#  Adds C to each number in the list N1, N2 ...
+#  Example:
+#  echo {1..5} | plus 2
+plus()
+{
+    check_help $1 $FUNCNAME || return 1
+    local val=${1-0}
+    shift
+    local x=( `input "$@"` )
+    echo "${x[@]}"|awk -v v=$val '{for(i=1;i<=NF;i++){print v+$i;}}'
+    return 0
 }
 
 ## pow2: Base 2 power of numbers.
@@ -1014,7 +1039,7 @@ round()
 	 echo $BC_ROUND"round($e)"|bc
       else
 	  echo "Error $e is not numeric"
-	  return 1
+	  quit 1
       fi
     done
     return 0
@@ -1103,6 +1128,21 @@ sum()
     #check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
+    return 0
+}
+
+## times: Scale input by a constant.
+#  Usage: times SCALE N1 N2 N3 ...
+#  Multiples each number in the list N1, N2 ... by SCALE.
+#  Example:
+#  echo {1..5} | times 2
+times()
+{
+    check_help $1 $FUNCNAME || return 1
+    local scale=${1-1}
+    shift
+    local x=( `input "$@"` )
+    echo "${x[@]}"|awk -v sc=$scale '{for(i=1;i<=NF;i++){print sc*$i;}}'
     return 0
 }
 
@@ -1385,6 +1425,66 @@ msg_quit()
     msg "$@"
     quit 1
 }
+
+##################
+### Plot Utilities
+##################
+
+## line: Simple line plot
+#  Usage: PIPE|line [options]
+#
+line()
+{
+    check_help $1 $FUNCNAME || return 1
+    if (require 'gnuplot'); then
+	while getopts 'b:' opt; do
+	    case "$opt" in
+		b) bin_width="$OPTARG";;
+	    esac
+	done
+	local x=(`input`)
+	local datfile=$(mktemp)
+	if [[ ${#x[@]} -gt 0 ]]; then
+	    echo "${x[@]}" | tr ' ' '\n'|nl > $datfile
+	    (
+		echo "plot '$datfile' u 2 t 'data' w linespoints lw 2 lt 3"
+	    )|gnuplot -persist
+	    rm $datfile
+	fi
+    else
+	msg_quit 'Gnuplot not available'
+    fi
+}
+
+## hist: Histogram
+hist()
+{
+    check_help $1 $FUNCNAME || return 1
+    if (require 'gnuplot'); then
+	local bin_width=0.3
+	while getopts 'b:' opt; do
+	    case "$opt" in
+		b) bin_width="$OPTARG";;
+	    esac
+	done
+	local x=(`input`)
+	local datfile=$(mktemp)
+	if [[ ${#x[@]} -gt 0 ]]; then
+	    echo "${x[@]}" | tr ' ' '\n' > $datfile
+	    (
+		echo "bin_width = ${bin_width};"
+		echo "bin_number(x) = floor(x/bin_width)"
+		echo "rounded(x) = bin_width * ( bin_number(x) + 0.5 )"
+		echo "UNITY = 1"
+		echo "plot '$datfile' u (rounded(\$1)):(UNITY) t 'data' smooth frequency w boxes lw 3 lt 3 fs solid 0.5"
+	    )|gnuplot -persist
+	    rm $datfile
+	fi
+    else
+	msg_quit 'Gnuplot not available'
+    fi
+}
+
 
 ####################
 ### String Utilities
