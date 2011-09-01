@@ -47,7 +47,7 @@ linspace 1 10 100|log2|line
 msg 'Histogram'
 rand 500|hist -n 20 -t 'Random numbers' -x 'X' -y 'Count'
 msg 'Plot using a dumb terminal'
-rand 500|hist -n 20 -t 'Random numbers' -x 'X' -y 'Count' -d 'dumb'
+linspace 1 10 100|log2|line -d 'dumb'
 msg 'Save plot to demo.png'
 linspace 1 10 100|log2|line -d 'png' -o 'demo.png'
 

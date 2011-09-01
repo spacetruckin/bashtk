@@ -1,15 +1,22 @@
 #!/bin/bash
 # BASHTK: BASH Toolkit
-#
-# A simple BASH script library with support for:
-# Basic math
-# String operations
-# Message notification
-# Logging
 # -----------------------------
 # Copyright 2011, Rajiv Narayan
 # -----------------------------
+# A BASH library with support for basic math, string operations,
+# init-style message notifications and logging.
+# Usage: bashtk [options]
+# Options:
+# -q Quiet mode. Do not print any message when sourced
+# -h Print this help message and exit
 #
+# * To use the library, simply source the file using:
+#   source ./bashtk
+# * After sourcing the library, type btkhelp for a list of available
+#   commands.  
+# * Run demo.sh for a demonstration of the main features of the library.
+#
+# License:
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -22,11 +29,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# TODO:
-# data structures
-# TODO: hash table : 
-# http://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
 
 # Current version
 BTK_VERSION="1.0-rc1"
@@ -914,7 +916,6 @@ linspace()
     local a=${1?not defined}
     local b=${2?not defined}
     local n=`floor ${3-100}`
-    echo $a $b $n
     if [[ $n -ge 2 ]]; then
 	awk -v a=$a -v b=$b -v n=$n 'BEGIN{step=(b-a)/(n-1); for(i=0;i<=(n-2);i++) print a+i*step; print b;}'
     else
@@ -1719,7 +1720,7 @@ checkDep()
 }
 
 # Check if dependencies exist
-checkDep 'bc' 'python' 'awk' 'readlink' 'stat'
+checkDep 'bc' 'python' 'awk' 'readlink' 'stat' 'gnuplot'
 
 # initialize colors and width for init messages
 [[ $BTK_USECOLOR -eq 1 ]] && _use_color
