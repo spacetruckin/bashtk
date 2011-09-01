@@ -44,6 +44,8 @@ BTK_LOG_DATE_FORMAT='%b %e %H:%M:%S' #date format for log
 BTK_DEBUG=0 #enable / disable debug messages
 BTK_PRECISION=6 #precision for bc calculator
 BTK_USECOLOR=1 #enable terminal colors
+BTK_X11_ENABLED=0 #is x11 available
+BTK_GPL_TERM='dumb' #gnuplot terminal info
 
 USAGE_HELP="-----------------------------
 \033[1;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m
@@ -690,7 +692,7 @@ is_mac()
 is_numeric()
 {
     _check_help $1 $FUNCNAME || quit 1
-    [[ `awk -v var="$1" 'BEGIN{print var==var+0}'` -eq 1 ]]
+    [[ `awk -v var="$1" 'BEGIN{if (var==var+0) print 1}'` -eq 1 ]]
 }
 
 ## is_pipein: Test if script received a pipe input.
@@ -912,6 +914,7 @@ linspace()
     local a=${1?not defined}
     local b=${2?not defined}
     local n=`floor ${3-100}`
+    echo $a $b $n
     if [[ $n -ge 2 ]]; then
 	awk -v a=$a -v b=$b -v n=$n 'BEGIN{step=(b-a)/(n-1); for(i=0;i<=(n-2);i++) print a+i*step; print b;}'
     else
@@ -1438,7 +1441,7 @@ msg_help()
 msg_quit()
 {
     _check_help $1 $FUNCNAME || quit 1
-    msg "$@"
+    msg "$@" red bold
     quit 1
 }
 
@@ -1446,13 +1449,35 @@ msg_quit()
 ### Plot Utilities
 ##################
 
+#check if x11 is available
+_check_x11()
+{
+    if [[ $BTK_X11_ENABLED == 1 ]]; then
+	return 0
+    else
+	xset -q 2&>/dev/null && BTK_X11_ENABLED=1 || BTK_X11_ENABLED=0
+    fi
+    [[ $BTK_X11_ENABLED == 1 ]]
+}
+
 #check if gnuplot is available
 _check_gnuplot()
 {
     if (require 'gnuplot'); then
+	_set_gnuplot_term
 	return 0
     else
 	msg_quit 'Gnuplot required' 1
+    fi
+}
+
+_set_gnuplot_term()
+{
+    _check_x11
+    if [[ $? -eq 0 ]]; then
+	BTK_GPL_TERM='x11'
+    else
+	BTK_GPL_TERM='dumb'
     fi
 }
 
@@ -1460,8 +1485,12 @@ _check_gnuplot()
 #  Usage: PIPE|line [options]
 #
 #  Options:
-#  -w Line width, default is 2
+#  -d <string> terminal device. Default x11. Too see a list of available terminals type
+#     echo 'set term'|gnuplot
+#  -o <string> output filename
 #  -t <string> plot title
+#  -s <string> plot style [lines, points, linespoints]
+#  -w Line width, default is 2
 #  -x <string> xlabel
 #  -y <string> ylabel
 line()
@@ -1469,8 +1498,17 @@ line()
     _check_help $1 $FUNCNAME || quit 1
     _check_gnuplot
     local lw='2'
-    while getopts 't:x:y:w:' opt; do
+    local device='x11'
+    local t=''
+    local xl=''
+    local yl=''
+    local out=''
+    local ps='linespoints'
+    while getopts 'd:o:p:t:x:y:w:' opt; do
 	case "$opt" in
+	    d) device="$OPTARG";;
+	    o) out="$OPTARG";;
+	    p) ps="$OPTARG";;
 	    t) t="$OPTARG";;
 	    x) xl="$OPTARG";;
 	    y) yl="$OPTARG";;	    
@@ -1482,6 +1520,8 @@ line()
     if [[ ${#x[@]} -gt 0 ]]; then
 	echo "${x[@]}" | tr ' ' '\n'|nl > $datfile
 	(
+	    echo "set term $device"
+	    [[ -n $out ]] && echo "set output '$out'"
 	    echo "unset key"
 	    echo "set title '$t'"
 	    echo "set xlabel '$xl'"
@@ -1496,7 +1536,10 @@ line()
 #  Usage: PIPE | hist [options]
 #
 #  Options:
+#  -d string terminal device. Default x11. Too see a list of available terminals type
+#     echo 'set term'|gnuplot
 #  -n <int> number of bins. Default is 10
+#  -o string Output filename
 #  -t <string> plot title
 #  -x <string> xlabel
 #  -y <string> ylabel
@@ -1508,12 +1551,16 @@ hist()
     local title=''
     local xlabel=''
     local ylabel=''
-    while getopts 'n:t:x:y:' opt; do
+    local device='x11'
+    local out=''
+    while getopts 'd:n:t:x:y:o:' opt; do
 	case "$opt" in
+	    d) device="$OPTARG";;
 	    n) n="$OPTARG";;
 	    t) title="$OPTARG";;
 	    x) xlabel="$OPTARG";;
 	    y) ylabel="$OPTARG";;
+	    o) out="$OPTARG";;
 	esac
     done
     local x=(`input`)
@@ -1524,6 +1571,8 @@ hist()
 	local bw=$(calc "(${lh[1]} - ${lh[0]}) / $n")
 	echo "${x[@]}" | tr ' ' '\n' > $datfile
 	(
+	    echo "set term $device"
+	    [[ -n $out ]] && echo "set output '$out'"
 	    echo "bin_width = ${bw};"
 	    echo "bin_number(x) = floor(x/bin_width)"
 	    echo "rounded(x) = bin_width * ( bin_number(x) + 0.5 )"
