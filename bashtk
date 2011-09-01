@@ -6,9 +6,9 @@
 # String operations
 # Message notification
 # Logging
-# ----------------------------
-# Copyright 2011 Rajiv Narayan
-# ----------------------------
+# -----------------------------
+# Copyright 2011, Rajiv Narayan
+# -----------------------------
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -352,6 +352,18 @@ quit()
     else
 	exit ${1:-1}
     fi
+}
+
+## yesno: Prompt for a reply.
+#  Usage: yesno [MSG]
+#  Prompts for a yes/no reply. If the reply is 'y' returns an exit
+#  code of 0, else returns 1.
+yesno()
+{
+    local m="${1-Reply }"
+    read -p "$m (y/n)?:" -n 1 ans
+    echo
+    [[ $ans == [yY] ]]
 }
 
 ##############################
@@ -982,7 +994,10 @@ rand()
            ((i++))
        done
    fi
-   echo "${x[@]}"
+   for e in "${x[@]}"
+   do
+       echo "$e"
+   done
 }
 
 ## round: Round to nearest integer.
