@@ -69,7 +69,7 @@ _check_help()
 {
     if [[ $1 == -h ]]; then 
 	btkhelp $2
-	return 1; 
+	quit 1; 
     fi
 }
 
@@ -105,7 +105,7 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
 #  See also: toc 
 tic () 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     BTK_TIC=$(date +%s)
 }
 
@@ -121,7 +121,7 @@ tic ()
 #  echo "${elapsed}s elapsed."
 toc()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local _TOC=$(date +%s)
     if [[ -n $BTK_TIC ]]; then
 	local SECS_ELAPSED=$(($_TOC - $BTK_TIC))
@@ -145,7 +145,7 @@ toc()
 #  abs_path ~/myfile.txt
 abs_path()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local p="$1"
     local d="$(dirname -- "$p")"
     if [[ $d == '~' ]]; then
@@ -167,7 +167,7 @@ abs_path()
 #  If dirname does not exist, prints an error and exits
 dir_check()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ ! -d "$1" ]] && printErrorAndExit "Folder:$1 missing"
 }
 
@@ -176,7 +176,7 @@ dir_check()
 #  If FILENAME does not exist, prints error and exits
 fileCheck()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ ! -f "$1" ]] && printErrorAndExit "File:$1 missing"
 }
 
@@ -190,7 +190,7 @@ fileCheck()
 #  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
 file_parts() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local f="$1"
     if ! $(is_empty "$f"); then
 	local bn=$(basename $f)
@@ -216,7 +216,7 @@ file_parts()
 #  full_file foo bar zog.txt
 full_file()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local f="$1"
     shift 1
     for part in $@
@@ -243,7 +243,7 @@ full_file()
 #  if (require ls); then echo 'ls exists'; fi
 require () 
 { 
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     type -p "$1" 2>&1 >/dev/null
 }
 
@@ -257,7 +257,7 @@ require ()
 #  exits if status is non-zero.  Returns the status as the exit code.
 bail()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ $? -gt 0 ]]; then
 	{
 	    [[ -n "$@" ]] && echo "$@"
@@ -278,7 +278,7 @@ bail()
 #  echo ${x[@]}
 file2array()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local f="$1"
     if is_file $f; then
 	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
@@ -301,7 +301,7 @@ file2array()
 #  in=(`input "$@"`)
 input()
 {
-    #_check_help $1 $FUNCNAME || quit 1
+    #_check_help $1 $FUNCNAME
     local SAVEIFS=$IFS
     IFS=$(echo -en "\n\b")
     local x=( "$@" )
@@ -335,7 +335,7 @@ inputType()
 #  returns 1 or EXIT CODE.
 quit()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if is_interactive; then
 	kill -s SIGINT $$
 	return ${1:-1}
@@ -483,7 +483,7 @@ deltext()
 #  Prints MSG 
 print_hl() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local m="${1}"
     shift
     local attr="$(color_string ${@-BLUE})"
@@ -498,7 +498,7 @@ print_hl()
 status()
 {
     local ret=$?
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     [[ $ret -eq 0 ]] && status_pass || status_fail
     return $ret
@@ -508,7 +508,7 @@ status()
 #  Usage: status_append
 status_append() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     printf "${RESTORE_POSITION}"
     printf -- "${C_MAIN}${1}${C_CLEAR}"
     printf "${SAVE_POSITION}"
@@ -518,7 +518,7 @@ status_append()
 #  Usage: status_bkgd
 status_bkgd() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     deltext
     printf "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
@@ -528,7 +528,7 @@ status_bkgd()
 #  Usage: status_busy
 status_busy() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     printf "${SAVE_POSITION}"
     deltext
@@ -541,7 +541,7 @@ status_busy()
 #  reports exit status.
 status_cmd()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     status_busy "$1"
     shift
     "$@" &>/dev/null
@@ -556,7 +556,7 @@ status_cmd()
 #  Prints fail status and exits with 1 or specified code.
 status_die() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     status_fail
     quit ${1:-1}
 }
@@ -565,7 +565,7 @@ status_die()
 #  Usage: status_fail
 status_fail() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     deltext
     printf "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} \n"
 }
@@ -574,7 +574,7 @@ status_fail()
 #  Usage: status_pass
 status_pass() 
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     deltext
     printf "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} \n"
 }
@@ -591,7 +591,7 @@ status_pass()
 #  ! is_defined $x && echo 'x is not defined'
 is_defined()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     #[[ ${!1-X} == ${!1-Y} ]]
     [[ ! -z "${1+x}" ]]
 }
@@ -604,7 +604,7 @@ is_defined()
 # if ! (is_dir myfolder); then echo 'folder does not exist'; fi
 is_dir()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ -d $1 ]]
 }
 
@@ -613,7 +613,7 @@ is_dir()
 # if (is_empty "foo"); then echo 'string is not empty'; fi
 is_empty()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ -z $1 ]]
 }
 
@@ -625,7 +625,7 @@ is_empty()
 #  if (is_file myfile.txt); then echo 'file exists'; fi
 is_file()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ -f $1 ]]
 }
 
@@ -634,7 +634,7 @@ is_file()
 #  Returns 0 if a file redirection input was detected, 1 if not
 is_filein()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if ! is_pipein && ! isStdin; then
 	return 0
     else
@@ -648,7 +648,7 @@ is_filein()
 #  if is_integer -10; then echo 'is an integer'; fi 
 is_integer()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [ "$1" -eq "$1" 2>/dev/null ]
     #[[ $1 -eq $1 ]] 2>/dev/null
 }
@@ -671,7 +671,7 @@ is_interactive()
 #  is_linux && echo 'go tux!' || echo 'no cigar'
 is_linux()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ $OSTYPE =~ linux ]]
 }
 
@@ -683,7 +683,7 @@ is_linux()
 #  is_mac && echo 'im a lemon' || echo 'not a lemon'
 is_mac()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ $OSTYPE =~ darwin ]]
 }
 
@@ -694,7 +694,7 @@ is_mac()
 #  if (is_numeric 10.5); then echo 'is a number'; fi
 is_numeric()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ `awk -v var="$1" 'BEGIN{if (var==var+0) print 1}'` -eq 1 ]]
 }
 
@@ -703,7 +703,7 @@ is_numeric()
 #  Returns 0 if a pipe input was detected, 1 if not
 is_pipein()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if is_linux; then
 	local src=$(readlink /proc/self/fd/0)
 	if [[ $src =~ ^pipe: ]]; then
@@ -723,7 +723,7 @@ is_pipein()
 #  Returns 0 if a standard input was detected, 1 if not
 is_stdin()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if is_linux; then
 	local src=$(file `readlink /proc/self/fd/0`)
 	if [[ $src =~ character\ special ]]; then
@@ -747,7 +747,7 @@ is_stdin()
 #  Computes the absolute value of a list of numbers.
 abs()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
         echo ${x[@]}|awk '{for(i=1;i<=NF;i++){print ($i>=0) ? $i : -$i;}}'
@@ -772,7 +772,7 @@ abs()
 # Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
 function calc()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local stat=0
     local result=0.0
     local e=(`input "$@"`)
@@ -789,7 +789,7 @@ function calc()
 #  Usage: ceil N1 [N2] ...
 #  Returns the smallest integer that is not less than N1.
 ceil() { 
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
 # BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
     local x=( `input "$@"` )
@@ -831,7 +831,7 @@ ceil() {
 # Modified from: http://www.linuxjournal.com/content/floating-point-math-bash
 function float_cond()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local cond=0
     local e=(`input "$@"`)
     if [[ ${#e[@]} -gt 0 ]]; then
@@ -847,7 +847,7 @@ function float_cond()
 #  Usage: floor N1 [N2] ...
 #  Returns the largest integer that is not greater than N.
 floor() { 
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
 # a BC solution
 # See http://stackoverflow.com/questions/2726896/bash-bcmath-functions
     local x=( `input "$@"` )
@@ -880,7 +880,7 @@ floor() {
 #  See also set_precision 
 get_precision()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     echo ${BTK_PRECISION}
 }
 
@@ -888,7 +888,7 @@ get_precision()
 #  Usage: iqr N1 N2 ...
 #  Calculates the IQR of the list [N1 N2 ...]
 iqr() {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]] ; then
 	local q25=$(echo "${x[@]}" | prctile 25)
@@ -901,7 +901,7 @@ iqr() {
 #  Usage: length L1 L2 L3 ...
 length()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     echo ${#x[@]}
     return 0
@@ -911,7 +911,7 @@ length()
 #  Usage: log2 N1 N2 N3 ...
 log2()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     for e in ${x[@]}; do
 	echo "scale=$(get_precision); l($e)/l(2)"|bc -l
@@ -926,7 +926,7 @@ log2()
 #  linspace 1 10 100 
 linspace()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local a=${1?not defined}
     local b=${2?not defined}
     local n=`floor ${3-100}`
@@ -945,7 +945,7 @@ linspace()
 #  See also: set_precision
 mean()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     echo "scale=$(get_precision);" $(sum "${x[@]}")/${#x[@]}|bc
 }
@@ -953,7 +953,7 @@ mean()
 ## max: Calculate the maximum of a list of numbers.
 max()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
 	local res=(`echo "${x[@]}" | minmax`)
@@ -968,7 +968,7 @@ max()
 #  Usage: median N1 N2 ...
 #  Calculates the median of the list [N1 N2 ...]
 median() {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]] ; then
 	echo "${x[@]}" | prctile 50
@@ -978,7 +978,7 @@ median() {
 ## min: Calculate the minimum of a list of numbers.
 min()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
 	local res=(`echo "${x[@]}" | minmax`)
@@ -992,7 +992,7 @@ min()
 ## minmax: Calculate the minimum and maximum of a list of numbers.
 minmax()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
 	echo ${x[@]}|awk '{min=$1; max=$1; for(i=2;i<=NF;i++){if ($i>max) max=$i; \
@@ -1010,7 +1010,7 @@ else if ($i<min) min=$i;}}; END{print min"\n"max}'
 #  See also set_precision
 pi()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     echo "scale=$(get_precision); 4*a(1)"| bc -l 
 }
 
@@ -1021,7 +1021,7 @@ pi()
 #  echo {1..5} | plus 2
 plus()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local val=${1-0}
     shift
     local x=( `input "$@"` )
@@ -1034,7 +1034,7 @@ plus()
 #  Calculates 2^N for a list of numbers.
 pow2()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     for e in ${x[@]}; do
 	if (is_integer $e); then
@@ -1050,7 +1050,7 @@ pow2()
 #  Calculates the Pth percentile of the list [N1 N2 ...]
 prctile()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local p=${1-1}
     float_cond "$p <= 100" || msg_quit 'P should be in the range 0..100' 
     shift
@@ -1069,7 +1069,7 @@ else {R=P*(NF+1)/100; l=int(R); r=NF-int(NF-R); ddl=R-l; print arr[l]+ddl*(arr[r
 #  if specified.
 rand()
 {
-   _check_help $1 $FUNCNAME || quit 1
+   _check_help $1 $FUNCNAME
    local n=${1:-1}
    if require awk; then
        local x=(`awk -v N=$n 'BEGIN{srand(); for (i=0;i<N;i++){print rand();}}'`)
@@ -1096,7 +1096,7 @@ rand()
 # Reference: Numerical recipes in C: Normal (Gaussian) Deviates
 randn()
 {
-   _check_help $1 $FUNCNAME || quit 1
+   _check_help $1 $FUNCNAME
    local n=${1:-1}
    awk -v N=$n 'BEGIN{srand(); for (i=0;i<int((N+1)/2);i++){\
 do { v1=2*rand()-1; v2=2*rand()-1; rsq=v1*v1+v2*v2;} while (rsq >=1 || rsq ==0);\
@@ -1110,7 +1110,7 @@ if (i*2<=N) print v1*fac"\n"v2*fac; else print v1*fac; } }'
 #  Prints remainder of N1 after division by D
 rem()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local d=${1-1}
     shift
     local x=( `input "$@"` )
@@ -1130,7 +1130,7 @@ rem()
 #  Usage: round N1 [N2] ...
 round()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     BC_ROUND="define round(x) { scale=0; if (x>0) return (x+0.5)/1
     else return (x-0.5)/1 }"
     local x=( `input "$@"` )
@@ -1152,7 +1152,7 @@ round()
 #  See also get_precision
 set_precision()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     BTK_PRECISION=${1:-6}
 }
 
@@ -1162,7 +1162,7 @@ set_precision()
 #  is equal to zero.
 sign()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     for e in "${x[@]}"
     do
@@ -1186,7 +1186,7 @@ sign()
 #  Usage: sqrt N1 [N2] ...
 sqrt()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     for e in ${x[@]}; do
         if (float_cond "$e>=0"); then
@@ -1203,7 +1203,7 @@ sqrt()
 #  Usage: std X1 X2 ...
 std()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 1 ]]; then
 	local mu=$(mean "${x[@]}")
@@ -1225,7 +1225,7 @@ END{print sqrt(sum2/(NF - 1))}')
 #  sum ${x[@]}
 sum()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     #_check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
@@ -1239,7 +1239,7 @@ sum()
 #  echo {1..5} | times 2
 times()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local scale=${1-1}
     shift
     local x=( `input "$@"` )
@@ -1251,7 +1251,7 @@ times()
 #  Usage X1 X2 ...
 var()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     local mu=$(mean "${x[@]}")
     local v
@@ -1269,7 +1269,7 @@ END{print sum2/(NF - 1)}')
 # private function
 _getAttrValue()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local val=''
     local stat=0
     case $(upper "$1") in
@@ -1316,7 +1316,7 @@ _getAttrValue()
 #  See also: color_string
 color()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local fgcol="$1"
     fgcol=${fgcol:-RESET}
     bgcol=${bgcol:-RESET}
@@ -1349,7 +1349,7 @@ color()
 #  See also: color
 color_string()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local attr
     [[ $# -gt 0 ]] && attr=("$@") || attr=('reset')
     local attrstr
@@ -1366,7 +1366,7 @@ color_string()
 #  See also: log_on, log_off, msg
 log()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	local m="$@"
 	local ts=`date +"$BTK_LOG_DATE_FORMAT"`
@@ -1382,7 +1382,7 @@ log()
 #  Usage: log_cat
 log_cat()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ -f $BTK_LOG_FILE ]]; then
 	cat "$BTK_LOG_FILE"
     else
@@ -1394,7 +1394,7 @@ log_cat()
 #  Usage: log_name
 log_name()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	echo "$BTK_LOG_FILE"
     else
@@ -1408,7 +1408,7 @@ log_name()
 #  See also: log_on
 log_off()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local m="${@:---- End log ---}"
     log "$m"
     log_suspend
@@ -1421,7 +1421,7 @@ log_off()
 #  See also: log_off, log
 log_on()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ -n $1 ]]; then
 	BTK_LOG_FILE="$1"
 	touch "$BTK_LOG_FILE"
@@ -1436,7 +1436,7 @@ log_on()
 #  Usage: log_reset
 log_reset()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
 	rm -f "$BTK_LOG_FILE"
 	log_on "$BTK_LOG_FILE"
@@ -1450,7 +1450,7 @@ log_reset()
 #  See also: log_suspend
 log_resume()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     if [[ $BTK_ENABLE_LOG -eq 0 && -f $BTK_LOG_FILE ]]; then
 	log_on "$BTK_LOG_FILE"
     elif [[ ! -f $BTK_LOG_FILE ]]; then
@@ -1463,7 +1463,7 @@ log_resume()
 #  See also: log_resume
 log_suspend()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     BTK_ENABLE_LOG=0
 }
 
@@ -1474,7 +1474,7 @@ log_suspend()
 
 log_tail()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local n=${1:-10}
     if [[ $BTK_ENABLE_LOG -eq 1 ]]; then
         tail -"$n" "$BTK_LOG_FILE"
@@ -1494,7 +1494,7 @@ log_tail()
 #  See also: color, log
 msg()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local m="$1"
     shift
     color "$@"
@@ -1509,7 +1509,7 @@ msg()
 #  defined. Exits with error code 1.
 msg_help()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     [[ $# -gt 0 ]] && msg "$@" red bold
     is_defined "$USAGE_HELP" && msg "$USAGE_HELP"
     quit 1
@@ -1520,7 +1520,7 @@ msg_help()
 #  Prints MSG and exits with error code 1
 msg_quit()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     msg "$@" red bold
     quit 1
 }
@@ -1565,7 +1565,8 @@ _set_gnuplot_term()
 #  Usage: PIPE|line [options]
 #
 #  Options:
-#  -d <string> terminal device. Default x11. Too see a list of available terminals type
+#  -d <string> terminal device. Default x11. To see a list of
+#     available terminals type:
 #     echo 'set term'|gnuplot
 #  -o <string> output filename
 #  -t <string> plot title
@@ -1575,7 +1576,7 @@ _set_gnuplot_term()
 #  -y <string> ylabel
 line()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     _check_gnuplot
     local lw='2'
     local device='x11'
@@ -1625,7 +1626,7 @@ line()
 #  -y <string> ylabel
 hist()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     _check_gnuplot
     local n=10
     local title=''
@@ -1675,7 +1676,7 @@ hist()
 ## capitalize: Convert first letter of string to uppercase.
 capitalize()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local s="$(input "$@")"
     local f=`upper "${s:0:1}"`
     local r=`lower "${s:1}"`
@@ -1687,7 +1688,7 @@ capitalize()
 #  Highlights each term in the input data.
 colorize()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local terms=( "$@" )
     local col='\033[1;31m'
     local reset='\033[0m'
@@ -1705,14 +1706,14 @@ colorize()
 ## lower: Convert string to lowercase.
 lower()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     echo "$(input $@)" | tr '[:upper:]' '[:lower:]'
 }
 
 ## str_deblank: Remove trailing spaces from the end of a string.
 str_deblank()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     echo "$(input $@)" | sed 's/ *$//'
 }
 
@@ -1722,7 +1723,7 @@ str_deblank()
 #  the output at a maximum length.
 str_rep()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local s="$1"
     local n="${2:-0}"
     local maxlen="$3"
@@ -1753,7 +1754,7 @@ str_rep()
 #  echo ${x[@]}
 str_tok()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     local tok=' '
     local s=(`input`)
     while getopts 't:s:' opt; do
@@ -1771,14 +1772,14 @@ str_tok()
 ## str_trim: Remove leading and trailing spaces from a string.
 str_trim()
 {
-    _check_help $1 $FUNCNAME || quit 1
+    _check_help $1 $FUNCNAME
     echo "$(input $@)" | sed 's/^ *//; s/ *$//'
 }
 
 ## upper: Convert string to uppercase.
 upper()
 {
-    _check_help $1 $FUNCNAME || quit 1 
+    _check_help $1 $FUNCNAME 
     echo "$(input $@)" | tr '[:lower:]' '[:upper:]'
 }
 
