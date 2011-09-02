@@ -77,20 +77,21 @@ btkhelp()
 {
     echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m\n"
     if [[ -z $1 ]]; then
-	echo "A list of available commands:"
-	awk '
+	(   echo "A list of available commands:"
+	    awk '
 /^### .*/ {gsub ("^#* *",""); print "\033[4;1;31m""\n"$0"\033[0m";}
 /^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[1;34m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
-	echo
-	echo "Type <command> -h or btkhelp <command> for help on a specific command." | colorize 'btkhelp'
+	    echo
+	    echo "Type <command> -h or btkhelp <command> for help on a specific command." | colorize 'btkhelp'
+	)|more -d
     else
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
 if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[1;34m"a[1]"\033[0m"a[2];} 
 else if (/^#.*/) {gsub("^#* *","  "); print};
 }' $BTK_PATH
-	echo
-	echo "Type btkhelp for a list of available commands"|colorize 'btkhelp'
+	    echo
+	    echo "Type btkhelp for a list of available commands"|colorize 'btkhelp'
     fi
 }
 
@@ -883,6 +884,19 @@ get_precision()
     echo ${BTK_PRECISION}
 }
 
+## iqr: Inter-quartile range of a sample.
+#  Usage: iqr N1 N2 ...
+#  Calculates the IQR of the list [N1 N2 ...]
+iqr() {
+    _check_help $1 $FUNCNAME || quit 1
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]] ; then
+	local q25=$(echo "${x[@]}" | prctile 25)
+	local q75=$(echo "${x[@]}" | prctile 75)
+	calc "$q75 - $q25"
+    fi
+}
+
 ## length: Length of a list.
 #  Usage: length L1 L2 L3 ...
 length()
@@ -950,6 +964,17 @@ max()
     fi
 }
 
+## median: Median of a sample.
+#  Usage: median N1 N2 ...
+#  Calculates the median of the list [N1 N2 ...]
+median() {
+    _check_help $1 $FUNCNAME || quit 1
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]] ; then
+	echo "${x[@]}" | prctile 50
+    fi
+}
+
 ## min: Calculate the minimum of a list of numbers.
 min()
 {
@@ -970,7 +995,8 @@ minmax()
     _check_help $1 $FUNCNAME || quit 1
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]]; then
-	echo ${x[@]}|awk '{min=$1; max=$1; for(i=1;i<=NF;i++){if ($i>max) max=$i; else if ($1<min) min=$i;}}; END{print min"\n"max}'
+	echo ${x[@]}|awk '{min=$1; max=$1; for(i=2;i<=NF;i++){if ($i>max) max=$i; \
+else if ($i<min) min=$i;}}; END{print min"\n"max}'
 	return 0
     else
 	return 1
@@ -1019,6 +1045,24 @@ pow2()
     done
 }
 
+## prctile: Percentile of a sample.
+#  Usage: prctile P N1 N2 ...
+#  Calculates the Pth percentile of the list [N1 N2 ...]
+prctile()
+{
+    _check_help $1 $FUNCNAME || quit 1
+    local p=${1-1}
+    float_cond "$p <= 100" || msg_quit 'P should be in the range 0..100' 
+    shift
+    local x=( `input "$@"` )
+    if [[ ${#x[@]} -gt 0 ]] ; then
+	echo "${x[@]}" | awk -v P=$p '{for (i=1;i<=NF;i++){ arr[i]=$i; }} \
+END{asort(arr); if (P==50) {if (NF%2==0) print 0.5*(arr[NF/2]+arr[NF/2-1]); else print arr[(NF-1)/2]} \
+else if (P==0) print arr[0]; else if (P==100) print arr[NF-1]; \
+else {R=P*(NF+1)/100; l=int(R); r=NF-int(NF-R); ddl=R-l; print arr[l]+ddl*(arr[r]-arr[l])}}'
+    fi
+}
+
 ## rand: Generate random numbers.
 #  Usage: rand [N]
 #  Generates one random number in the range [0,1]. Generates N value
@@ -1043,6 +1087,28 @@ rand()
    do
        echo "$e"
    done
+}
+
+
+## rem: Remainder after division.
+#  Usage: rem D N1 ...
+#  Prints remainder of N1 after division by D
+rem()
+{
+    _check_help $1 $FUNCNAME || quit 1
+    local d=${1-1}
+    shift
+    local x=( `input "$@"` )
+    for e in "${x[@]}"
+    do
+      if (is_numeric $e); then
+	  calc "scale=0;$e % 2"
+      else
+	  echo "Error $e is not numeric"
+	  quit 1
+      fi
+    done
+    return 0
 }
 
 ## round: Round to nearest integer.
@@ -1179,8 +1245,6 @@ var()
 END{print sum2/(NF - 1)}')
     echo $v
 }
-
-# prctile
 
 ########################
 ### Messages and Logging
@@ -1482,7 +1546,7 @@ _set_gnuplot_term()
     fi
 }
 
-## line: Line plot
+## line: Line plot.
 #  Usage: PIPE|line [options]
 #
 #  Options:
@@ -1505,11 +1569,11 @@ line()
     local yl=''
     local out=''
     local ps='linespoints'
-    while getopts 'd:o:p:t:x:y:w:' opt; do
+    while getopts 'd:o:t:s:x:y:w:' opt; do
 	case "$opt" in
 	    d) device="$OPTARG";;
 	    o) out="$OPTARG";;
-	    p) ps="$OPTARG";;
+	    s) ps="$OPTARG";;
 	    t) t="$OPTARG";;
 	    x) xl="$OPTARG";;
 	    y) yl="$OPTARG";;	    
@@ -1527,7 +1591,7 @@ line()
 	    echo "set title '$t'"
 	    echo "set xlabel '$xl'"
 	    echo "set ylabel '$yl'"
-	    echo "plot '$datfile' u 2 t 'data' w linespoints lw $lw lt 3"
+	    echo "plot '$datfile' u 2 w $ps lw $lw lt 3"
 	)|gnuplot -persist
 	rm $datfile
     fi
@@ -1582,12 +1646,12 @@ hist()
 	    echo "set title '$title n=${#x[@]}'"
 	    echo "set xlabel '$xlabel'"
 	    echo "set ylabel '$ylabel'"
-	    echo "plot '$datfile' u (rounded(\$1)):(UNITY) t 'data' smooth frequency w boxes lw 3 lt 3 fs solid 0.5"
+	    echo "plot '$datfile' u (rounded(\$1)):(UNITY) smooth frequency w boxes lw 3 lt 3 fs solid 0.5"
+#	    echo "plot \"\" u 1:(1/300) smooth cumulative t 'cummulative'"
 	)|gnuplot -persist
 	rm $datfile
     fi
 }
-
 
 ####################
 ### String Utilities
@@ -1737,3 +1801,4 @@ else
 	msg_help
     fi
 fi
+
