@@ -1088,7 +1088,22 @@ rand()
        echo "$e"
    done
 }
+## randn: Normally distributed random numbers.
+#  Usage: randn [N]
+#  Generates one or N  normal random numbers.
 
+# Uses Box-Muller transformation
+# Reference: Numerical recipes in C: Normal (Gaussian) Deviates
+randn()
+{
+   _check_help $1 $FUNCNAME || quit 1
+   local n=${1:-1}
+   awk -v N=$n 'BEGIN{srand(); for (i=0;i<int((N+1)/2);i++){\
+do { v1=2*rand()-1; v2=2*rand()-1; rsq=v1*v1+v2*v2;} while (rsq >=1 || rsq ==0);\
+ fac=sqrt(-2.0*log(rsq)/rsq); \
+if (i*2<=N) print v1*fac"\n"v2*fac; else print v1*fac; } }'
+
+}
 
 ## rem: Remainder after division.
 #  Usage: rem D N1 ...

@@ -45,10 +45,10 @@ msg 'Plotting functions' cyan underline
 msg 'Line plot'
 linspace 1 10 100|log2|line
 msg 'Histogram'
-rand 500|hist -n 20 -t 'Random numbers' -x 'X' -y 'Count'
+randn 500|hist -n 20 -t 'Random numbers' -x 'X' -y 'Count'
 msg 'Plot using a dumb terminal'
 linspace 1 10 100|log2|line -d 'dumb'
-msg 'Save plot to demo.png'
+msg 'Saving a plot to demo.png'
 linspace 1 10 100|log2|line -d 'png' -o 'demo.png'
 echo
 
