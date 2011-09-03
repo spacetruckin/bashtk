@@ -819,6 +819,28 @@ ceil() {
     return 0
 }
 
+## describe Descriptive Statistics.
+#  Usage: describe N1 N2 ...
+#  Prints a number of descriptive statistics for the list of numbers
+#  [N1,N2...]
+describe()
+{
+    _check_help $1 $FUNCNAME
+    x=(`input "$@"`)
+    echo "N: ${#x[@]}"
+    local mm=(`minmax` "${x[@]}")
+    local q=(`prctile '25,50,75' "${x[@]}"`)
+    local iq=$(calc "${q[2]} - ${q[0]}")
+    local robcv=$(calc "100*$iq/${q[1]}")
+    echo "Min: ${mm[0]}"
+    echo "Max: ${mm[1]}"
+    echo "Q25: ${q[0]}"
+    echo "Median: ${q[1]}"
+    echo "Q75: ${q[2]}"
+    echo "IQR: $iq"
+    echo "Robust CV: $robcv"
+}
+
 ## float_cond: Evaluate a floating point number conditional expression.
 #  Usage: float_cond CONDITIOAL_EXPRESSION
 #  Evaluates CONDITIONAL_EXPRESSION using bc and sets the
@@ -1051,15 +1073,18 @@ pow2()
 prctile()
 {
     _check_help $1 $FUNCNAME
-    local p=${1-1}
-    float_cond "$p <= 100" || msg_quit 'P should be in the range 0..100' 
+    local p=${1}
+    [[ -z $p ]] && msg_quit "Must specify P"
     shift
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]] ; then
-	echo "${x[@]}" | awk -v P=$p '{for (i=1;i<=NF;i++){ arr[i]=$i; }} \
-END{asort(arr); if (P==50) {if (NF%2==0) print 0.5*(arr[NF/2]+arr[NF/2-1]); else print arr[(NF-1)/2]} \
-else if (P==0) print arr[0]; else if (P==100) print arr[NF-1]; \
-else {R=P*(NF+1)/100; l=int(R); r=NF-int(NF-R); ddl=R-l; print arr[l]+ddl*(arr[r]-arr[l])}}'
+echo "${x[@]}" | awk -v P=$p 'function ptile(arr, N, P){if (P==50) {if (N%2==0) print 0.5*(arr[N/2]+arr[N/2-1]); else print arr[(N-1)/2];} \
+else if (P==0) print arr[0]; else if (P==100) print arr[N-1]; \
+else {R=P*(N+1)/100; l=int(R); r=N-int(N-R); ddl=R-l; print arr[l]+ddl*(arr[r]-arr[l])}}{for (i=1;i<=NF;i++){ arr[i]=$i; }} \
+END{asort(arr); \
+np=split(P,parr,",");\
+for (i=1;i<=np;i++) if (parr[i]>=0 && parr[i] <=100) ptile(arr, NF, parr[i]); else print "Error p not in range [0,100]"
+}'
     fi
 }
 
@@ -1226,7 +1251,6 @@ END{print sqrt(sum2/(NF - 1))}')
 sum()
 {
     _check_help $1 $FUNCNAME
-    #_check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
     return 0
