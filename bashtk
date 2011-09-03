@@ -31,7 +31,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Current version
-BTK_VERSION="1.0-rc1"
+BTK_VERSION="1.0"
 # Path to bashtk script
 #BASHTK_PATH=`type -p bashtk`
 # works with bash >= v3
@@ -75,17 +75,20 @@ _check_help()
 
 btkhelp()
 {
-    echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m\n"
     if [[ -z $1 ]]; then
-	(   echo "A list of available commands:"
+	(   
+	    echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m\n"
+	    echo "List of available commands:"
+	    echo "For help on a specific command, type:
+<command> -h or btkhelp <command>" | colorize 'btkhelp'
 	    awk '
 /^### .*/ {gsub ("^#* *",""); print "\033[4;1;31m""\n"$0"\033[0m";}
 /^## / {gsub ("^#* *",""); split($0,a,":"); print "\033[1;34m"a[1]"\033[0m"a[2];}
 ' $BTK_PATH
 	    echo
-	    echo "Type <command> -h or btkhelp <command> for help on a specific command." | colorize 'btkhelp'
 	)|more -d
     else
+	echo -e "\033[1;4;34mBashTk: BASH Toolkit v$BTK_VERSION\033[0m\n"
 	awk -v pat="^## $1:" '$0~pat,!/^#.*/{
 if ($0~pat) {gsub("^#* *",""); split($0,a,":"); print "\033[1;34m"a[1]"\033[0m"a[2];} 
 else if (/^#.*/) {gsub("^#* *","  "); print};
@@ -95,9 +98,9 @@ else if (/^#.*/) {gsub("^#* *","  "); print};
     fi
 }
 
-#########################
-### Date / Time functions
-#########################
+###########################
+### Date and Time Functions
+###########################
 
 ## tic: Start timer.
 #  Usage: tic
@@ -134,7 +137,7 @@ toc()
 }
 
 ##################
-### File utilities
+### File Utilities
 ##################
 
 ## abs_path: Resolve the absolute path to a file.
@@ -247,117 +250,8 @@ require ()
     type -p "$1" 2>&1 >/dev/null
 }
 
-################
-### IO functions
-################
-
-## bail: Exit on error.
-#  Usage: bail MESSAGE
-#  Checks the exit status of the last command and prints MESSAGE and
-#  exits if status is non-zero.  Returns the status as the exit code.
-bail()
-{
-    _check_help $1 $FUNCNAME
-    if [[ $? -gt 0 ]]; then
-	{
-	    [[ -n "$@" ]] && echo "$@"
-	    quit 1
-	}
-    fi
-    return 0
-}
-
-## file2array: Read a text file into an array.
-#  Usage: file2array FILENAME
-#  Prints each line in FILENAME, ignoring blank lines and lines that
-#  begin with a '#'
-#
-#  Example
-#  x=(`file2array foo.txt`)
-#  echo "number of elements:" ${#x[@]}
-#  echo ${x[@]}
-file2array()
-{
-    _check_help $1 $FUNCNAME
-    local f="$1"
-    if is_file $f; then
-	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
-	for e in "${arr[@]}";
-	do
-	    echo $e
-	done	
-    fi
-}
-
-## input: Read input from stdin, pipes or files.
-#  Usage: [PIPE|] input [STDIN] [<FILE]
-#  Returns data from standard input, file redirection or pipe.
-#  
-#  Example:
-#  echo 1 2 3 | input
-#  input 1 2 3
-#  input < file.txt
-#  #Read into an array
-#  in=(`input "$@"`)
-input()
-{
-    #_check_help $1 $FUNCNAME
-    local SAVEIFS=$IFS
-    IFS=$(echo -en "\n\b")
-    local x=( "$@" )
-    if [[ ${#x[@]} -eq 0 ]]; then
-	if is_pipein || ! is_stdin; then
-	    x=(`while read -r l; do echo "$l"; done`)	    
-	fi
-    fi
-    echo "${x[@]}"
-    IFS=$SAVEIFS
-}
-
-inputType()
-{
-    local t='no input'
-    local x=( "$@" )
-    if [[ ${#x[@]} -gt 0 ]]; then
-	t='stdin'
-    elif is_pipein; then
-	t='pipe'
-    elif ! is_stdin; then
-	t='file'
-    fi
-    echo $t
-}
-
-## quit: Exit with error code.
-#  Usage: quit [EXIT CODE]
-#  Replacement for exit. When called from a script exits with status 1
-#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
-#  returns 1 or EXIT CODE.
-quit()
-{
-    _check_help $1 $FUNCNAME
-    if is_interactive; then
-	kill -s SIGINT $$
-	return ${1:-1}
-    else
-	exit ${1:-1}
-    fi
-}
-
-## yesno: Prompt for a reply.
-#  Usage: yesno [MSG]
-#  Prompts for a yes/no reply. If the reply is 'y' returns an exit
-#  code of 0, else returns 1.
-yesno()
-{
-    local m="${1-Reply }"
-    read -p "$m (y/n)?:" -n 1 ans
-    echo
-    [[ $ans == [yY] ]]
-}
-
 ##############################
-### Init style status messages
+### Init-style Status Messages
 ##############################
 # Modified from the Arch Linux initscripts package
 
@@ -488,7 +382,7 @@ print_hl()
     shift
     local attr="$(color_string ${@-BLUE})"
     
-    printf "${C_OTHER}${PREFIX_HL} ${attr}${m}${C_CLEAR} \n"
+    msg "${C_OTHER}${PREFIX_HL} ${attr}${m}${C_CLEAR} "
 }
 
 ## status: Report exit status of last executed command.
@@ -499,7 +393,7 @@ status()
 {
     local ret=$?
     _check_help $1 $FUNCNAME
-    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    msg -n "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     [[ $ret -eq 0 ]] && status_pass || status_fail
     return $ret
 }
@@ -519,9 +413,9 @@ status_append()
 status_bkgd() 
 {
     _check_help $1 $FUNCNAME
-    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    msg -n "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     deltext
-    printf "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
+    msg -n "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
 }
 
 ## status_busy: Prints busy status.
@@ -529,7 +423,7 @@ status_bkgd()
 status_busy() 
 {
     _check_help $1 $FUNCNAME
-    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    msg -n "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     printf "${SAVE_POSITION}"
     deltext
     printf "   ${C_OTHER}[${C_BUSY}BUSY${C_OTHER}]${C_CLEAR} "
@@ -567,7 +461,7 @@ status_fail()
 {
     _check_help $1 $FUNCNAME
     deltext
-    printf "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} \n"
+    msg "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} "
 }
 
 ## status_pass: Prints pass status.
@@ -576,7 +470,116 @@ status_pass()
 {
     _check_help $1 $FUNCNAME
     deltext
-    printf "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} \n"
+    msg "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} "
+}
+
+################
+### IO Functions
+################
+
+## bail: Exit on error.
+#  Usage: bail MESSAGE
+#  Checks the exit status of the last command and prints MESSAGE and
+#  exits if status is non-zero.  Returns the status as the exit code.
+bail()
+{
+    _check_help $1 $FUNCNAME
+    if [[ $? -gt 0 ]]; then
+	{
+	    [[ -n "$@" ]] && echo "$@"
+	    quit 1
+	}
+    fi
+    return 0
+}
+
+## file2array: Read a text file into an array.
+#  Usage: file2array FILENAME
+#  Prints each line in FILENAME, ignoring blank lines and lines that
+#  begin with a '#'
+#
+#  Example
+#  x=(`file2array foo.txt`)
+#  echo "number of elements:" ${#x[@]}
+#  echo ${x[@]}
+file2array()
+{
+    _check_help $1 $FUNCNAME
+    local f="$1"
+    if is_file $f; then
+	local arr=(`cat "$f"|egrep -v '^$|^#'|tr '\n' ' '`)
+	for e in "${arr[@]}";
+	do
+	    echo $e
+	done	
+    fi
+}
+
+## input: Read input from stdin, pipes or files.
+#  Usage: [PIPE|] input [STDIN] [<FILE]
+#  Returns data from standard input, file redirection or pipe.
+#  
+#  Example:
+#  echo 1 2 3 | input
+#  input 1 2 3
+#  input < file.txt
+#  #Read into an array
+#  in=(`input "$@"`)
+input()
+{
+    #_check_help $1 $FUNCNAME
+    local SAVEIFS=$IFS
+    IFS=$(echo -en "\n\b")
+    local x=( "$@" )
+    if [[ ${#x[@]} -eq 0 ]]; then
+	if is_pipein || ! is_stdin; then
+	    x=(`while read -r l; do echo "$l"; done`)	    
+	fi
+    fi
+    echo "${x[@]}"
+    IFS=$SAVEIFS
+}
+
+inputType()
+{
+    local t='no input'
+    local x=( "$@" )
+    if [[ ${#x[@]} -gt 0 ]]; then
+	t='stdin'
+    elif is_pipein; then
+	t='pipe'
+    elif ! is_stdin; then
+	t='file'
+    fi
+    echo $t
+}
+
+## quit: Exit with error code.
+#  Usage: quit [EXIT CODE]
+#  Replacement for exit. When called from a script exits with status 1
+#  or EXIT CODE if specified.  In interactive mode, sends a SIGINT and
+#  returns 1 or EXIT CODE.
+quit()
+{
+    _check_help $1 $FUNCNAME
+    if is_interactive; then
+	kill -s SIGINT $$
+	return ${1:-1}
+    else
+	exit ${1:-1}
+    fi
+}
+
+## yesno: Prompt for a reply.
+#  Usage: yesno [MSG]
+#  Prompts for a yes/no reply. If the reply is 'y' returns an exit
+#  code of 0, else returns 1.
+yesno()
+{
+    local m="${1-Reply }"
+    read -p "$m (y/n)?:" -n 1 ans
+    echo
+    [[ $ans == [yY] ]]
 }
 
 #################
@@ -739,7 +742,7 @@ is_stdin()
 }
 
 ##################
-### Math utilities
+### Math Utilities
 ##################
 
 ## abs: Absolute value.
@@ -819,7 +822,7 @@ ceil() {
     return 0
 }
 
-## describe Descriptive Statistics.
+## describe: Descriptive Statistics.
 #  Usage: describe N1 N2 ...
 #  Prints a number of descriptive statistics for the list of numbers
 #  [N1,N2...]
@@ -828,7 +831,7 @@ describe()
     _check_help $1 $FUNCNAME
     x=(`input "$@"`)
     echo "N: ${#x[@]}"
-    local mm=(`minmax` "${x[@]}")
+    local mm=(`minmax "${x[@]}"`)
     local q=(`prctile '25,50,75' "${x[@]}"`)
     local iq=$(calc "${q[2]} - ${q[0]}")
     local robcv=$(calc "100*$iq/${q[1]}")
@@ -838,7 +841,7 @@ describe()
     echo "Median: ${q[1]}"
     echo "Q75: ${q[2]}"
     echo "IQR: $iq"
-    echo "Robust CV: $robcv"
+    echo "Robust CV%: $robcv"
 }
 
 ## float_cond: Evaluate a floating point number conditional expression.
@@ -906,16 +909,15 @@ get_precision()
     echo ${BTK_PRECISION}
 }
 
-## iqr: Inter-quartile range of a sample.
+## iqr: Inter-quartile range.
 #  Usage: iqr N1 N2 ...
 #  Calculates the IQR of the list [N1 N2 ...]
 iqr() {
     _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
     if [[ ${#x[@]} -gt 0 ]] ; then
-	local q25=$(echo "${x[@]}" | prctile 25)
-	local q75=$(echo "${x[@]}" | prctile 75)
-	calc "$q75 - $q25"
+	local q=(`echo "${x[@]}" | prctile '25,75'`)
+	calc "${q[1]} - ${q[0]}"
     fi
 }
 
@@ -1070,6 +1072,11 @@ pow2()
 ## prctile: Percentile of a sample.
 #  Usage: prctile P N1 N2 ...
 #  Calculates the Pth percentile of the list [N1 N2 ...]
+#         prctile "P1,P2,.." N1 N2 ...
+#  Reports P1, P2,... th percentiles of the data
+#
+#  Example:
+#  randn 1000|prctile '25,50,75' 
 prctile()
 {
     _check_help $1 $FUNCNAME
@@ -1189,21 +1196,8 @@ sign()
 {
     _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
-    for e in "${x[@]}"
-    do
-      if (is_numeric $e); then
-	  if ( float_cond "$e > 0" ); then
-	      echo 1
-	  elif ( float_cond "$e < 0" ); then
-	      echo -1
-	  else
-	      echo 0
-	  fi
-      else
-	  echo "Error $e is not numeric"
-	  return 1
-      fi
-    done
+    echo "${x[@]}" | awk '{for (i=1;i<=NF;i++) \
+{if ($i>0) print 1; else if ($1<0) print -1; else print 0;}}'
     return 0
 }
 
@@ -1271,8 +1265,8 @@ times()
     return 0
 }
 
-## var: Variance
-#  Usage X1 X2 ...
+## var: Variance.
+#  Usage: var X1 X2 ...
 var()
 {
     _check_help $1 $FUNCNAME
@@ -1520,9 +1514,15 @@ msg()
 {
     _check_help $1 $FUNCNAME
     local m="$1"
+    local newl=1
+    if [[ $m == '-n' ]]; then
+	newl=0
+	shift
+	m="$1"
+    fi
     shift
     color "$@"
-    echo -e "$m"
+    [[ $newl -eq 1 ]] && echo -e "$m" || echo -ne "$m"
     color reset
     log "$m"
 }
@@ -1568,7 +1568,6 @@ _check_x11()
 _check_gnuplot()
 {
     if (require 'gnuplot'); then
-	_set_gnuplot_term
 	return 0
     else
 	msg_quit 'Gnuplot required' 1
@@ -1603,7 +1602,7 @@ line()
     _check_help $1 $FUNCNAME
     _check_gnuplot
     local lw='2'
-    local device='x11'
+    local device=${BTK_GPL_TERM}
     local t=''
     local xl=''
     local yl=''
@@ -1648,6 +1647,8 @@ line()
 #  -t <string> plot title
 #  -x <string> xlabel
 #  -y <string> ylabel
+
+# Known Bugs: Breaks with identical value inputs
 hist()
 {
     _check_help $1 $FUNCNAME
@@ -1656,7 +1657,7 @@ hist()
     local title=''
     local xlabel=''
     local ylabel=''
-    local device='x11'
+    local device=${BTK_GPL_TERM}
     local out=''
     while getopts 'd:n:t:x:y:o:' opt; do
 	case "$opt" in
@@ -1670,7 +1671,7 @@ hist()
     done
     local x=(`input`)
     local datfile=$(mktemp)
-    if [[ ${#x[@]} -gt 0 ]]; then
+    if [[ ${#x[@]} -gt 1 ]]; then
 	#compute bin_width
 	local lh=(`minmax "${x[@]}"`) 
 	local bw=$(calc "(${lh[1]} - ${lh[0]}) / $n")
@@ -1683,6 +1684,7 @@ hist()
 	    echo "rounded(x) = bin_width * ( bin_number(x) + 0.5 )"
 	    echo "UNITY = 1"
 	    echo "unset key"
+	    echo "set autoscale x"
 	    echo "set title '$title n=${#x[@]}'"
 	    echo "set xlabel '$xlabel'"
 	    echo "set ylabel '$ylabel'"
@@ -1824,7 +1826,9 @@ checkDep()
 }
 
 # Check if dependencies exist
-checkDep 'bc' 'python' 'awk' 'readlink' 'stat' 'gnuplot'
+checkDep 'bc' 'awk' 'readlink' 'stat' 'gnuplot'
+# set gnuplot terminal
+_set_gnuplot_term
 
 # initialize colors and width for init messages
 [[ $BTK_USECOLOR -eq 1 ]] && _use_color

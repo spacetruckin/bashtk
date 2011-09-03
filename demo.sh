@@ -32,9 +32,8 @@ echo
 msg 'Math functions' cyan underline
 x=(`echo {1..10}`)
 echo "x=${x[@]}"
-msg 'length x='`length ${x[@]}`
-msg 'sum x='`sum ${x[@]}`
-msg 'mean x='`mean ${x[@]}`
+msg 'Descriptive Statistics'
+echo "${x[@]}" | describe
 msg 'Commands accept pipes: echo {1..5}|pow2|sqrt'
 echo {1..5} | pow2 |sqrt
 msg "Evaluate expressions: calc 'sqrt(2)*100/2'"
