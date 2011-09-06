@@ -1,5 +1,5 @@
 #!/bin/bash
-source ./bashtk -q
+source $(dirname $0)/bashtk -q
 str_rep '-' 11
 msg 'BashTk demo' red bold
 str_rep '-' 11
