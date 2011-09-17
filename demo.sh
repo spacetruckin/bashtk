@@ -49,6 +49,8 @@ msg 'Plot using a dumb terminal'
 linspace 1 10 100|log2|line -d 'dumb'
 msg 'Saving a plot to demo.png'
 linspace 1 10 100|log2|line -d 'png' -o 'demo.png'
+msg 'Plot CDF'
+randn 1000|cdfplot
 echo
 
 msg 'String utilities' cyan underline
