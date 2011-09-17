@@ -1609,17 +1609,72 @@ _set_gnuplot_term()
     fi
 }
 
+## cdfplot: Display an empirical cumulative distribution function.
+#  Usage: PIPE | cdfplot [options]
+#
+#  Options:
+#  -d <string> Terminal device. Default x11. Too see a list of
+#     available terminals type:
+#     echo 'set term'|gnuplot
+#  -o <string> Output filename
+#  -t <string> Title
+#  -w <int> Line width
+#  -x <string> Xlabel
+#  -y <string> Ylabel
+cdfplot()
+{
+    _check_help $1 $FUNCNAME
+    _check_gnuplot
+    local lw='2'
+    local device=${BTK_GPL_TERM}
+    local t='Empirical CDF'
+    local xl='x'
+    local yl='F(x)'
+    local out=''
+    local ps='steps'
+    local showstats=1
+    while getopts 'd:o:t:s:x:y:w:' opt; do
+	case "$opt" in
+	    d) device="$OPTARG";;
+	    o) out="$OPTARG";;
+	    s) ps="$OPTARG";;
+	    t) t="$OPTARG";;
+	    x) xl="$OPTARG";;
+	    y) yl="$OPTARG";;	    
+	    w) lw=$(floor "$OPTARG");;
+	esac
+    done
+    local x=(`input`)
+    local datfile=$(mktemp)
+    if [[ ${#x[@]} -gt 1 ]]; then
+	echo "${x[@]}" |tr ' ' '\n'|sort -n|awk -vN="${#x[@]}" 'BEGIN{y=0;}{if (NR==1) x=$1; else if ($1-x>0) {print  y/N"\t"x; y=NR; x=$1}}END{printf "1\t"x"\n"}' > $datfile
+	(
+	    echo "set term $device"
+	    [[ -n $out ]] && echo "set output '$out'"
+	    echo "unset key"
+	    echo "set title '$t'"
+	    echo "set xlabel '$xl'"
+	    echo "set ylabel '$yl'"
+	    echo "set ytics 0,0.1" 
+	    echo "set grid"
+	    echo "plot '$datfile' u 2:1 w $ps lw $lw lt 3"
+	)|gnuplot -persist
+	rm $datfile
+	[[ $showstats -eq 1 ]] && describe "${x[@]}"
+    fi
+}
+
 ## line: Line plot.
 #  Usage: PIPE|line [options]
 #
 #  Options:
-#  -d <string> terminal device. Default x11. To see a list of
+#  -d <string> Terminal device. Default x11. Too see a list of
 #     available terminals type:
 #     echo 'set term'|gnuplot
 #  -o <string> output filename
 #  -t <string> plot title
 #  -s <string> plot style [lines, points, linespoints]
-#  -w Line width, default is 2
+#  -w <int> Line width, default is 2
 #  -x <string> xlabel
 #  -y <string> ylabel
 line()
@@ -1665,13 +1720,14 @@ line()
 #  Usage: PIPE | hist [options]
 #
 #  Options:
-#  -d string terminal device. Default x11. Too see a list of available terminals type
+#  -d <string> terminal device. Default x11. To see a list of
+#     available terminals type:
 #     echo 'set term'|gnuplot
 #  -n <int> number of bins. Default is 10
-#  -o string Output filename
-#  -t <string> plot title
-#  -x <string> xlabel
-#  -y <string> ylabel
+#  -o <string> Output filename
+#  -t <string> Plot title
+#  -x <string> Xlabel
+#  -y <string> Ylabel
 
 # Known Bugs: Breaks with identical value inputs
 hist()
