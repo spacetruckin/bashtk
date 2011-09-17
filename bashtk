@@ -832,16 +832,20 @@ describe()
     x=(`input "$@"`)
     echo "N: ${#x[@]}"
     local mm=(`minmax "${x[@]}"`)
+    local mu=(`mean "${x[@]}"`)
+    local sigma=(`std "${x[@]}"`)    
     local q=(`prctile '25,50,75' "${x[@]}"`)
     local iq=$(calc "${q[2]} - ${q[0]}")
     local robcv=$(calc "100*$iq/${q[1]}")
     echo "Min: ${mm[0]}"
     echo "Max: ${mm[1]}"
-    echo "Q25: ${q[0]}"
+    echo "Mean: $mu"
     echo "Median: ${q[1]}"
-    echo "Q75: ${q[2]}"
+    echo "Std: $sigma"
     echo "IQR: $iq"
     echo "Robust CV%: $robcv"
+    echo "Q25: ${q[0]}"
+    echo "Q75: ${q[2]}"
 }
 
 ## float_cond: Evaluate a floating point number conditional expression.
@@ -1178,6 +1182,20 @@ round()
     return 0
 }
 
+## roundto: Round to specified precision.
+#  Usage: roundto N1 N2 ...
+#  Rounds the input to the precision specified by set_precision.
+#  See also: set_precision, get_precision
+roundto()
+{
+   _check_help $1 $FUNCNAME
+   local x=( `input "$@"` )
+   for e in "${x[@]}"
+   do
+       printf "%.$(get_precision)f\n" $e
+   done
+}
+
 ## set_precision: Set floating point precision.
 #  Usage: set_precision integer
 #  If called without and argument defaults to 6.
@@ -1246,7 +1264,14 @@ sum()
 {
     _check_help $1 $FUNCNAME
     local x=( `input "$@"` )
-    echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
+    # BC solution, arbitrary precision
+    local s=$(echo "${x[@]}"|tr ' ' '+'|bc)
+    printf "%.$(get_precision)f\n" $s
+    # Awk Solution, precision=6
+    # echo "${x[@]}"|awk '{for(i=1;i<=NF;i++){s+=$i}; print s}'
+    # Kahan compensated summation avoids precision errors
+    # http://en.wikipedia.org/wiki/Compensated_summation
+    # echo "${x[@]}"|awk '{s=$1; c=0; for(i=2;i<=NF;i++){y=$i-c; t=s+y; c=(t-s)-y; s=t}; print s}'
     return 0
 }
 
