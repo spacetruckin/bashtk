@@ -1868,6 +1868,24 @@ colorize()
 	done
     fi
 }
+## decap: 
+decap()
+{
+    _check_help $1 $FUNCNAME
+    local n=0
+    local s=(`input`)
+    while getopts 'n:s:' opt; do
+	case "$opt" in
+	    n) n="$OPTARG";;
+	    s) s="$OPTARG";;
+	esac
+    done
+    if [[ $n -gt 0 ]]; then
+	echo "${s[@]}"|tr ' ' '\n'|sed "1,${n}d"
+    else
+	echo "${s[@]}"|tr ' ' '\n'
+    fi
+}
 
 ## duplicates: Find duplicates in a list.
 #  Usage: duplicates A B C ...
@@ -1939,10 +1957,7 @@ str_tok()
 	    s) s="$OPTARG";;
 	esac
     done
-    local arr=$(echo "$s"| tr "$tok" '\n')
-    for e in ${arr[@]}; do
-	echo $e
-    done
+    echo "$s"| tr "$tok" '\n'
 }
 
 ## str_trim: Remove leading and trailing spaces from a string.
