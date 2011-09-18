@@ -1868,7 +1868,9 @@ colorize()
 	done
     fi
 }
-## decap: 
+## decap: Remove first elements of a list.
+#  Usage: decap -n N -s A B C ...
+#  Remove the first N elements in the list [A,B,C...] 
 decap()
 {
     _check_help $1 $FUNCNAME
