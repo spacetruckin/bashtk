@@ -2,6 +2,7 @@
 # BASHTK: BASH Toolkit
 # -----------------------------
 # Copyright 2011, Rajiv Narayan
+# askrajiv[AT]gmail[DOT]com
 # -----------------------------
 # A BASH library with support for basic math, string operations,
 # init-style message notifications and logging.
@@ -42,6 +43,7 @@ BTK_PATH=$BASH_SOURCE
 BTK_TIC='' #timer count
 BTK_ENABLE_LOG=0 #enable logging
 BTK_LOG_FILE='' #log filename
+BTK_LOG_ADD_TS=1 # Add timestamp to log entries
 BTK_LOG_DATE_FORMAT='%b %e %H:%M:%S' #date format for log
 BTK_DEBUG=0 #enable / disable debug messages
 BTK_PRECISION=6 #precision for bc calculator
@@ -191,16 +193,19 @@ fileCheck()
 #  Example
 #  parts=(`file_parts ~/file.txt`)
 #  echo "path:${parts[0]} file:${parts[1]} ext:${parts[2]}"
+
+# TODO: handle spaces in file names
 file_parts() 
 {
     _check_help $1 $FUNCNAME
-    local f="$1"
+    #local f="$1"
+    local f=(`input "$@"`)
     if ! $(is_empty "$f"); then
-	local bn=$(basename $f)
-	local dn=$(dirname $f)
+	local bn="$(basename $f)"
+	local dn="$(dirname $f)"
 	echo $dn
-	echo ${bn%%\.*}
-	local ext=${bn#*\.}
+	echo ${bn%\.*}
+	local ext=${bn##*\.}
 	if [ "$ext" != "$bn" ]; then
 	    echo ".$ext"
 	else
@@ -320,6 +325,8 @@ _use_color()
     C_OTHER=${C_MAIN}${C_BOLD}${C_BLUE}
 # busy
     C_BUSY=${C_CLEAR}${BOLD}${C_YELLOW}
+# warn
+    C_WARN=${C_MAIN}${C_BOLD}${C_CYAN}
 # failed
     C_FAIL=${C_MAIN}${C_BOLD}${C_RED}
 # completed
@@ -383,6 +390,7 @@ print_hl()
     local attr="$(color_string ${@-BLUE})"
     
     msg "${C_OTHER}${PREFIX_HL} ${attr}${m}${C_CLEAR} "
+    log "> $m"
 }
 
 ## status: Report exit status of last executed command.
@@ -393,7 +401,8 @@ status()
 {
     local ret=$?
     _check_help $1 $FUNCNAME
-    msg -n "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+#    msg -n "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+#    log "[STATUS]: $1"
     [[ $ret -eq 0 ]] && status_pass || status_fail
     return $ret
 }
@@ -406,6 +415,7 @@ status_append()
     printf "${RESTORE_POSITION}"
     printf -- "${C_MAIN}${1}${C_CLEAR}"
     printf "${SAVE_POSITION}"
+    log "[APPEND]: $1"
 }
 
 ## status_bkgd: Prints background status.
@@ -416,6 +426,7 @@ status_bkgd()
     msg -n "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
     deltext
     msg -n "   ${C_OTHER}[${C_BKGD}BKGD${C_OTHER}]${C_CLEAR} "
+    log "[BKGD]: $1"
 }
 
 ## status_busy: Prints busy status.
@@ -427,6 +438,7 @@ status_busy()
     printf "${SAVE_POSITION}"
     deltext
     printf "   ${C_OTHER}[${C_BUSY}BUSY${C_OTHER}]${C_CLEAR} "
+    log "[BUSY]: $1"
 }
 
 ## status_cmd: Execute command and print exit status.
@@ -462,6 +474,7 @@ status_fail()
     _check_help $1 $FUNCNAME
     deltext
     msg "   ${C_OTHER}[${C_FAIL}FAIL${C_OTHER}]${C_CLEAR} "
+    log "***[FAIL]***"
 }
 
 ## status_pass: Prints pass status.
@@ -471,6 +484,18 @@ status_pass()
     _check_help $1 $FUNCNAME
     deltext
     msg "   ${C_OTHER}[${C_DONE}PASS${C_OTHER}]${C_CLEAR} "
+    log "[PASS]"
+}
+
+## status_warn: Prints background status.
+#  Usage: status_warn
+status_warn() 
+{
+    _check_help $1 $FUNCNAME
+    msg -n "${C_OTHER}${PREFIX_REG} ${C_BKGD}${1}${C_CLEAR} "
+    deltext
+    msg -n "   ${C_OTHER}[${C_WARN}WARN${C_OTHER}]${C_CLEAR} "
+    log "[WARN]: $1"
 }
 
 ################
@@ -1592,7 +1617,6 @@ msg()
     color "$@"
     [[ $newl -eq 1 ]] && echo -e "$m" || echo -ne "$m"
     color reset
-    log "$m"
 }
 
 ## msg_help: Print message, help and quit.
@@ -1868,11 +1892,12 @@ colorize()
 	done
     fi
 }
-## decap: 
+## decap: Remove header(s).
+#  Usage: cat file | decap [ -n num ] [ -s array ]
 decap()
 {
     _check_help $1 $FUNCNAME
-    local n=0
+    local n=1
     local s=(`input`)
     while getopts 'n:s:' opt; do
 	case "$opt" in
