@@ -16,7 +16,8 @@
 # * After sourcing the library, type btkhelp for a list of available
 #   commands.  
 # * Run demo.sh for a demonstration of the main features of the library.
- #
+#
+# Fork me at GitHub: https://github.com/hashbang/bashtk
 # License:
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
