@@ -1892,8 +1892,11 @@ colorize()
 	done
     fi
 }
+
 ## decap: Remove header(s).
 #  Usage: cat file | decap [ -n num ] [ -s array ]
+#  Remove the first N elements in the list [A,B,C...] 
+
 decap()
 {
     _check_help $1 $FUNCNAME
